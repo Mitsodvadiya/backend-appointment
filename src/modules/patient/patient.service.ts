@@ -16,6 +16,13 @@ export class PatientService {
 
     return updatedPatient;
   }
+
+  async findByPhone(phone: string) {
+    const patient = await prisma.patient.findUnique({
+      where: { phone },
+    });
+    return patient;
+  }
 }
 
 export const patientService = new PatientService();

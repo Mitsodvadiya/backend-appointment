@@ -206,6 +206,54 @@ All fields are optional, you only need to pass the fields you wish to update.
 }
 ```
 
+### 4. Search Patient by Phone
+Retrieves a complete patient profile by exactly matching their phone number. Used by clinic staff to quickly pull up returning patients.
+
+- **URL:** `/patient/search?phone=<number>`
+- **Method:** `GET`
+- **Auth Required:** Yes (`CLINIC_ADMIN`, `DOCTOR`, or `STAFF`)
+
+#### Query Parameters
+- **`phone`** (Required) - The registered phone number of the patient.
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "id": "uuid-string",
+  "phone": "919876543210",
+  "name": "John Doe",
+  "age": 30,
+  "gender": "MALE",
+  "address": "123 Main St",
+  "createdAt": "2023-10-25T10:00:00.000Z",
+  "updatedAt": "2023-10-25T10:05:00.000Z",
+  "deletedAt": null
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Phone number is required"
+}
+```
+
+- **Code:** 403 Forbidden
+```json
+{
+  "error": "Access denied. Insufficient permissions."
+}
+```
+
+- **Code:** 404 Not Found
+```json
+{
+  "error": "Patient not found"
+}
+```
+
 ---
 ------------------------------------------------------------------------------------------------------
 ## Web Portal Authentication
