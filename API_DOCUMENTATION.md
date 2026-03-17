@@ -1,0 +1,444 @@
+# Clinic Queue API Documentation
+
+## Base URL
+`/api`
+
+## Authentication
+
+Protected routes require a JWT token in the `Authorization` header.
+Format: `Bearer <token>`
+
+---
+
+## Patient Authentication
+
+### 1. Send OTP
+Sends an OTP to the provided phone number. In development mode (`NODE_ENV !== 'production'`), it mocks the MSG91 API response.
+
+- **URL:** `/auth/send-otp`
+- **Method:** `POST`
+- **Auth Required:** No
+
+#### Request Body
+```json
+{
+  "phone": "string (Required. Example: 919876543210)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "OTP sent successfully",
+  "data": {
+    "type": "success",
+    "message": "Mock OTP sent successfully" // Or MSG91 response data
+  }
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Phone number is required"
+}
+```
+- **Code:** 500 Internal Server Error
+```json
+{
+  "error": "Failed to send OTP"
+}
+```
+
+---
+
+### 2. Verify OTP
+Verifies the provided OTP against the given phone number.
+In development mode (`NODE_ENV !== 'production'`), the mock OTP is always `123456`.
+
+- **URL:** `/auth/verify-otp`
+- **Method:** `POST`
+- **Auth Required:** No
+
+#### Request Body
+```json
+{
+  "phone": "string (Required. Example: 919876543210)",
+  "otp": "string (Required. Example: 123456)"
+}
+```
+
+#### Success Response
+Returns a JWT token, the patient object, and a redirection intent. 
+If the patient's name is not set, `redirectTo` will be `"ONBOARDING"`, otherwise `"DASHBOARD"`.
+
+- **Code:** 200 OK
+```json
+{
+  "message": "OTP verified successfully",
+  "token": "eyJhbGciOiJIUzI1...",
+  "refreshToken": "eyJhbGciOiJIUzI1...",
+  "redirectTo": "ONBOARDING",
+  "patient": {
+    "id": "uuid-string",
+    "phone": "919876543210",
+    "name": null,
+    "age": null,
+    "gender": null,
+    "address": null,
+    "createdAt": "2023-10-25T10:00:00.000Z",
+    "updatedAt": "2023-10-25T10:00:00.000Z",
+    "deletedAt": null
+  }
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request (Missing fields)
+```json
+{
+  "error": "Phone number and OTP are required"
+}
+```
+- **Code:** 400 Bad Request (Invalid OTP)
+```json
+{
+  "error": "Invalid OTP"
+}
+```
+
+}
+```
+
+---
+
+### 3. Refresh Token (Mobile App)
+Refreshes the Patient's short-lived access token using their long-lived refresh token.
+
+- **URL:** `/auth/patient-refresh`
+- **Method:** `POST`
+- **Auth Required:** No
+
+#### Request Body
+```json
+{
+  "refreshToken": "string (Required. The long-lived JWT refresh token)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "token": "new-eyJhbGciOiJIUzI1...",
+  "refreshToken": "new-eyJhbGciOiJIUzI1..."
+}
+```
+
+#### Error Response
+- **Code:** 401 Unauthorized
+```json
+{
+  "error": "Refresh token is required in the request body" 
+  // OR "Invalid refresh token"
+}
+```
+
+----------------------------------------------------------------------------
+
+### 3. Complete Profile
+Updates the profile information of the authenticated patient.
+
+- **URL:** `/patient/complete-profile`
+- **Method:** `PATCH`
+- **Auth Required:** Yes (`Bearer <JWT>`)
+
+#### Request Body
+All fields are optional, you only need to pass the fields you wish to update.
+```json
+{
+  "name": "string",
+  "age": "number",
+  "gender": "MALE | FEMALE | OTHER",
+  "address": "string"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Profile completed successfully",
+  "patient": {
+    "id": "uuid-string",
+    "phone": "919876543210",
+    "name": "John Doe",
+    "age": 30,
+    "gender": "MALE",
+    "address": "123 Main St",
+    "createdAt": "2023-10-25T10:00:00.000Z",
+    "updatedAt": "2023-10-25T10:05:00.000Z",
+    "deletedAt": null
+  }
+}
+```
+
+#### Error Response
+- **Code:** 401 Unauthorized
+```json
+{
+  "error": "Authorization header is missing" 
+  // OR "Unauthorized"
+}
+```
+- **Code:** 403 Forbidden
+```json
+{
+  "error": "Token is invalid or expired"
+}
+```
+- **Code:** 500 Internal Server Error
+```json
+{
+  "error": "Failed to complete profile"
+}
+```
+
+---
+------------------------------------------------------------------------------------------------------
+## Web Portal Authentication
+
+### 1. Register User
+Registers a new clinic admin or web user. The account will be inactive by default until the email is verified via the activation link sent to the user's email.
+
+- **URL:** `/auth/register`
+- **Method:** `POST`
+- **Auth Required:** No
+
+#### Request Body
+```json
+{
+  "name": "string (Required. Example: Dr. Smith)",
+  "email": "string (Required. Example: admin@clinic.com)",
+  "password": "string (Required. Example: mySuperSecretPassword)"
+}
+```
+
+#### Success Response
+- **Code:** 201 Created
+```json
+{
+  "message": "Registration successful. Please check your email to activate your account."
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Name, email, and password are required" 
+  // OR "Email is already registered"
+}
+```
+
+---
+
+### 2. Activate Account
+Activates the user's account using the JWT token sent securely to their email. On success, it instantly returns the fully authenticated user payload with a session token suitable for auto-login.
+
+- **URL:** `/auth/activate/:token`
+- **Method:** `GET`
+- **Auth Required:** No (Token is in URL parameter)
+
+#### Parameters
+- **`token`** (Path Parameter) - The secure JWT string containing the user's email payload.
+
+#### Success Response
+- **Code:** 200 OK
+- **Headers:** `Set-Cookie: refreshToken=eyJhb...; HttpOnly; Secure; SameSite=Strict`
+```json
+{
+  "message": "Account activated successfully",
+  "token": "eyJhbGciOiJIUzI1...",
+  "user": {
+    "id": "uuid-string",
+    "name": "Dr. Smith",
+    "email": "admin@clinic.com",
+    "role": "CLINIC_ADMIN"
+  }
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "User not found" 
+  // OR "Account is already activated"
+}
+```
+*Note: If the JWT signature is invalid or expired, `jsonwebtoken` will emit a generic internal error message natively.*
+
+---
+
+### 3. Login
+Standard password-based authentication for active web portal users.
+
+- **URL:** `/auth/login`
+- **Method:** `POST`
+- **Auth Required:** No
+
+#### Request Body
+```json
+{
+  "email": "string (Required. Example: admin@clinic.com)",
+  "password": "string (Required. Example: mySuperSecretPassword)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+- **Headers:** `Set-Cookie: refreshToken=eyJhb...; HttpOnly; Secure; SameSite=Strict`
+```json
+{
+  "message": "Login successful",
+  "token": "eyJhbGciOiJIUzI1...",
+  "user": {
+    "id": "uuid-string",
+    "name": "Dr. Smith",
+    "email": "admin@clinic.com",
+    "role": "CLINIC_ADMIN"
+  }
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Email and password are required"
+}
+```
+- **Code:** 401 Unauthorized
+```json
+{
+  "error": "Invalid credentials" 
+}
+```
+
+---
+
+### 4. Refresh Token (Web Portal)
+Silently refreshes the web portal user's short-lived access token by validating their HTTP-Only `refreshToken` cookie.
+
+- **URL:** `/auth/refresh`
+- **Method:** `POST`
+- **Auth Required:** No (Token is managed automatically via cookies)
+
+#### Request Requirements
+- Browser must include credentials (cookies) in the request.
+
+#### Success Response
+- **Code:** 200 OK
+- **Headers:** `Set-Cookie: refreshToken=new-eyJhb...; HttpOnly; Secure; SameSite=Strict`
+```json
+{
+  "token": "new-eyJhbGciOiJIUzI1..."
+}
+```
+
+#### Error Response
+- **Code:** 401 Unauthorized
+```json
+{
+  "error": "Refresh token not found" 
+  // OR "Invalid refresh token"
+}
+```
+
+---
+
+### 5. Logout (Web Portal)
+Clears the HTTP-Only `refreshToken` cookie from the user's browser, securely logging them out.
+
+- **URL:** `/auth/logout`
+- **Method:** `POST`
+- **Auth Required:** No
+
+#### Success Response
+- **Code:** 200 OK
+- **Headers:** `Set-Cookie: refreshToken=; Expires=Thu, 01 Jan 1970 00:00:00 GMT`
+{
+  "message": "Logged out successfully"
+}
+```
+
+---
+
+### 6. Forgot Password (Web Portal)
+Initiates the password reset flow. If the provided email exists and is active, a short-lived password reset link will be sent to the user's email address.
+
+- **URL:** `/auth/forgot-password`
+- **Method:** `POST`
+- **Auth Required:** No
+
+#### Request Body
+```json
+{
+  "email": "string (Required. Example: admin@clinic.com)"
+}
+```
+
+#### Success Response
+To prevent email enumeration attacks, this API intentionally always returns a 200 OK whether the email exists in the database or not.
+- **Code:** 200 OK
+```json
+{
+  "message": "If that email is registered, a password reset link has been sent."
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Email is required"
+}
+```
+
+---
+
+### 7. Reset Password (Web Portal)
+Completes the password reset flow by verifying the short-lived JWT token (from their email link) and updating the user's hashed password in the database.
+
+- **URL:** `/auth/reset-password`
+- **Method:** `POST`
+- **Auth Required:** No
+
+#### Request Body
+```json
+{
+  "token": "string (Required. Extracted from the email link URL parameter)",
+  "newPassword": "string (Required. Must be at least 6 characters)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Password has been successfully reset"
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Token and new password are required" 
+  // OR "Password reset link has expired. Please request a new one."
+  // OR "Failed to reset password. The link may be invalid."
+}
+```

@@ -1,10 +1,154 @@
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 import { env } from '../../config/env';
 import { prisma } from '../../prisma/client';
+import { emailService } from '../../common/utils/email.service';
+
 const MSG91_BASE_URL = 'https://control.msg91.com/api/v5';
 
 export class AuthService {
+  // =========================
+  // TOKEN GENERATION HELPER
+  // =========================
+  private generateTokens(payload: object) {
+    const token = jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpiresIn as any });
+    const refreshToken = jwt.sign(payload, env.jwtRefreshSecret, { expiresIn: env.jwtRefreshExpiresIn as any });
+    return { token, refreshToken };
+  }
+
+  // =========================
+  // USER (WEB PORTAL) AUTHENTICATION
+  // =========================
+
+  async register(name: string, email: string, passwordRaw: string) {
+    try {
+      const existingUser = await prisma.user.findUnique({ where: { email } });
+      if (existingUser) {
+        throw new Error('Email is already registered');
+      }
+
+      const hashedPassword = await bcrypt.hash(passwordRaw, 10);
+      
+      // Instead of saving token to DB, issue a short-lived JWT that embeds the email
+      const activationToken = jwt.sign(
+        { email },
+        env.jwtSecret,
+        { expiresIn: '1h' } // 1 hour expiration for activation links
+      );
+
+      const user = await prisma.user.create({
+        data: {
+          name,
+          email,
+          password: hashedPassword,
+          role: 'CLINIC_ADMIN', // Defaulting to an admin for web portal registration
+          isActive: false,
+        },
+      });
+
+      await emailService.sendActivationEmail(user.email!, activationToken);
+
+      return { message: 'Registration successful. Please check your email to activate your account.' };
+    } catch (error: any) {
+      console.error('Error during registration:', error);
+      throw new Error(error.message || 'Failed to register user');
+    }
+  }
+
+  async activate(token: string) {
+    try {
+      // Decode the token to get the email since it's not stored in the DB anymore
+      // We'll modify the register method to send a JWT token via email instead of a random string.
+      const decoded: any = jwt.verify(token, env.jwtSecret);
+      
+      const user = await prisma.user.findUnique({
+        where: { email: decoded.email },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      if (user.isActive) {
+        throw new Error('Account is already activated');
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          isActive: true,
+        },
+      });
+
+      const tokens = this.generateTokens({ 
+        id: updatedUser.id, 
+        email: updatedUser.email, 
+        role: updatedUser.role 
+      });
+
+      return {
+        message: 'Account activated successfully',
+        token: tokens.token,
+        refreshToken: tokens.refreshToken,
+        user: {
+          id: updatedUser.id,
+          name: updatedUser.name,
+          email: updatedUser.email,
+          role: updatedUser.role,
+        },
+      };
+    } catch (error: any) {
+      console.error('Error during activation:', error);
+      throw new Error(error.message || 'Failed to activate account');
+    }
+  }
+
+  async login(email: string, passwordRaw: string) {
+    try {
+      const user = await prisma.user.findUnique({ where: { email } });
+
+      if (!user || user.deletedAt || !user.password) {
+        throw new Error('Invalid credentials');
+      }
+
+      if (!user.isActive) {
+        throw new Error('Please activate your account before logging in');
+      }
+
+      const isPasswordValid = await bcrypt.compare(passwordRaw, user.password);
+      if (!isPasswordValid) {
+        throw new Error('Invalid credentials');
+      }
+
+      const tokens = this.generateTokens({ 
+        id: user.id, 
+        email: user.email, 
+        role: user.role 
+      });
+
+      return {
+        message: 'Login successful',
+        token: tokens.token,
+        refreshToken: tokens.refreshToken,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+      };
+    } catch (error: any) {
+      console.error('Error during login:', error);
+      throw new Error(error.message || 'Failed to login');
+    }
+  }
+
+  // =========================
+  // PATIENT (APP) AUTHENTICATION
+  // =========================
+
   async sendOtp(phone: string) {
     try {
       if (env.nodeEnv !== 'production') {
@@ -66,22 +210,147 @@ export class AuthService {
         });
       }
 
-      const token = jwt.sign(
-        { id: patient.id, phone: patient.phone },
-        env.jwtSecret,
-        { expiresIn: '7d' }
-      );
+      const tokens = this.generateTokens({ 
+        id: patient.id, 
+        phone: patient.phone 
+      });
 
       const redirectTo = (!patient.name || patient.name.trim() === '') ? 'ONBOARDING' : 'DASHBOARD';
 
       return {
-        token,
+        token: tokens.token,
+        refreshToken: tokens.refreshToken,
         redirectTo,
         patient,
       };
     } catch (error: any) {
       console.error('Error verifying OTP:', error);
       throw new Error(error.message || 'Failed to verify OTP');
+    }
+  }
+  // =========================
+  // PASSWORD RESET METHODS
+  // =========================
+
+  async forgotPassword(email: string) {
+    try {
+      const user = await prisma.user.findUnique({ where: { email } });
+      
+      if (!user || user.deletedAt || (!user.isActive && user.role !== 'SUPER_ADMIN')) {
+        // Return a generic success message to prevent email enumeration attacks
+        return { message: 'If that email is registered, a password reset link has been sent.' };
+      }
+
+      // Generate a short-lived token using the existing JWT_SECRET
+      const resetToken = jwt.sign(
+        { id: user.id, email: user.email, purpose: 'password_reset' },
+        env.jwtSecret,
+        { expiresIn: '15m' }
+      );
+
+      await emailService.sendPasswordResetEmail(user.email!, resetToken);
+
+      return { message: 'If that email is registered, a password reset link has been sent.' };
+    } catch (error: any) {
+      console.error('Error during forgot password:', error);
+      throw new Error(error.message || 'Failed to process forgot password request');
+    }
+  }
+
+  async resetPassword(token: string, newPasswordRaw: string) {
+    try {
+      // Decode and verify the token
+      const decoded: any = jwt.verify(token, env.jwtSecret);
+      
+      // Ensure this token was specifically generated for password reset
+      if (decoded.purpose !== 'password_reset') {
+        throw new Error('Invalid token purpose');
+      }
+
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+      });
+
+      if (!user || user.deletedAt) {
+        throw new Error('User not found');
+      }
+
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(newPasswordRaw, 10);
+
+      // Update the user's password in the database
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword },
+      });
+
+      return { message: 'Password has been successfully reset' };
+    } catch (error: any) {
+      console.error('Error during password reset:', error);
+      if (error.name === 'TokenExpiredError') {
+         throw new Error('Password reset link has expired. Please request a new one.');
+      }
+      throw new Error(error.message || 'Failed to reset password. The link may be invalid.');
+    }
+  }
+
+  // =========================
+  // REFRESH TOKEN METHODS
+  // =========================
+
+  async refreshUserToken(refreshToken: string) {
+    try {
+      const decoded: any = jwt.verify(refreshToken, env.jwtRefreshSecret);
+      
+      const user = await prisma.user.findUnique({
+        where: { id: decoded.id },
+      });
+
+      if (!user || user.deletedAt || (!user.isActive && user.role !== 'SUPER_ADMIN')) {
+        throw new Error('User not found or account inactive');
+      }
+
+      // Generate a new set of tokens (Rotates the refresh token securely)
+      const tokens = this.generateTokens({ 
+        id: user.id, 
+        email: user.email, 
+        role: user.role 
+      });
+
+      return {
+        token: tokens.token,
+        refreshToken: tokens.refreshToken,
+      };
+    } catch (error: any) {
+      console.error('Error refreshing user token:', error);
+      throw new Error(error.message || 'Invalid or expired refresh token');
+    }
+  }
+
+  async refreshPatientToken(refreshToken: string) {
+    try {
+      const decoded: any = jwt.verify(refreshToken, env.jwtRefreshSecret);
+      
+      const patient = await prisma.patient.findUnique({
+        where: { id: decoded.id },
+      });
+
+      if (!patient || patient.deletedAt) {
+        throw new Error('Patient not found');
+      }
+
+      const tokens = this.generateTokens({ 
+        id: patient.id, 
+        phone: patient.phone 
+      });
+
+      return {
+        token: tokens.token,
+        refreshToken: tokens.refreshToken,
+      };
+    } catch (error: any) {
+      console.error('Error refreshing patient token:', error);
+      throw new Error(error.message || 'Invalid or expired refresh token');
     }
   }
 }
