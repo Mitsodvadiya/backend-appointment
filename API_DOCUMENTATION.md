@@ -515,11 +515,11 @@ Updates an existing clinic's details.
 #### Request Body
 All fields are optional, you only need to pass the fields you wish to update.
 ```json
-{
-  "name": "string",
-  "address": "string",
-  "phone": "string"
-}
+  {
+    "name": "string",
+    "address": "string",
+    "phone": "string"
+  }
 ```
 
 #### Success Response
@@ -550,5 +550,114 @@ All fields are optional, you only need to pass the fields you wish to update.
 ```json
 {
   "error": "Access denied. Insufficient permissions."
+}
+```
+
+---
+
+### 3. Invite Clinic Member
+Invites a new member to the clinic. An email is sent to the provided email address containing an invitation link with a secure token. Creates an inactive `User` and `ClinicMember` record.
+
+- **URL:** `/clinic/:id/invite`
+- **Method:** `POST`
+- **Auth Required:** Yes (`Bearer <JWT>` with role `CLINIC_ADMIN`)
+
+#### Parameters
+- **`id`** (Path Parameter) - The unique ID of the clinic.
+
+#### Request Body
+```json
+{
+  "email": "string (Required. Example: doctor@clinic.com)",
+  "name": "string (Required. Example: Dr. Jane Doe)",
+  "role": "string (Required. Example: DOCTOR | STAFF | CLINIC_ADMIN)",
+  "phone": "string (Optional. Example: 919876543210)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Invitation sent successfully",
+  "user": {
+    "id": "uuid-string",
+    "name": "Dr. Jane Doe",
+    "email": "doctor@clinic.com",
+    "role": "DOCTOR",
+    "isActive": false,
+    "createdAt": "2023-11-01T10:00:00.000Z",
+    "updatedAt": "2023-11-01T10:00:00.000Z",
+    "deletedAt": null
+  }
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Email, name, and role are required" 
+  // OR "User with this email already exists and is active"
+}
+```
+- **Code:** 401 Unauthorized
+```json
+{
+  "error": "Unauthorized"
+}
+```
+- **Code:** 403 Forbidden
+```json
+{
+  "error": "Access denied. Insufficient permissions."
+}
+```
+
+---
+
+### 4. Activate Clinic Member
+Activates the invited member's account, sets their password, and logs them in via returning an auth token and setting an HTTP-Only refresh token cookie.
+
+- **URL:** `/clinic/activate-member`
+- **Method:** `POST`
+- **Auth Required:** No
+
+#### Request Body
+```json
+{
+  "token": "string (Required. Extracted from the email invitation link)",
+  "newPassword": "string (Required. Must be at least 6 characters)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+- **Headers:** `Set-Cookie: refreshToken=eyJhb...; HttpOnly; Secure; SameSite=Strict`
+```json
+{
+  "message": "Account activated successfully",
+  "token": "eyJhbGciOiJIUzI1...",
+  "user": {
+    "id": "uuid-string",
+    "name": "Dr. Jane Doe",
+    "email": "doctor@clinic.com",
+    "role": "DOCTOR"
+  },
+  "clinic": {
+    "id": "uuid-string",
+    "name": "City Hospital",
+    "address": "123 Main St, New York"
+  }
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Invite link has expired. Please request a new one." 
+  // OR "Failed to activate account. The link may be invalid."
+  // OR "Account is already activated"
 }
 ```

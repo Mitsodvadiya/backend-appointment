@@ -77,6 +77,39 @@ class EmailService {
       throw new Error('Failed to send password reset email');
     }
   }
+
+  async sendInviteEmail(to: string, inviteToken: string, clinicName: string): Promise<void> {
+    const inviteLink = `http://localhost:3000/accept-invite?token=${inviteToken}`;
+    
+    const mailOptions = {
+      from: env.smtpFrom,
+      to,
+      subject: `You have been invited to join ${clinicName}`,
+      html: `
+        <h1>Welcome to Clinic Queue!</h1>
+        <p>You have been invited to join <strong>${clinicName}</strong>.</p>
+        <p>Please click the link below to accept the invitation, set up your password, and activate your account:</p>
+        <br/>
+        <a href="${inviteLink}">${inviteLink}</a>
+        <br/>
+        <br/>
+        <p>If you have any questions, please contact your clinic administrator.</p>
+      `,
+    };
+
+    if (!env.smtpUser || env.smtpUser.includes('your_smtp_user')) {
+      console.log(`[Development Mode] Mock Invite Email sent to ${to}. Invite Link: ${inviteLink}`);
+      return;
+    }
+
+    try {
+      await this.transporter.sendMail(mailOptions);
+      console.log(`Invite email sent to ${to}`);
+    } catch (error) {
+      console.error('Error sending invite email:', error);
+      throw new Error('Failed to send invite email');
+    }
+  }
 }
 
 export const emailService = new EmailService();

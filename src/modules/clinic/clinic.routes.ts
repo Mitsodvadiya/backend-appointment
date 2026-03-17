@@ -19,4 +19,16 @@ router.put(
   clinicController.updateClinic
 );
 
+router.post(
+  '/:id/invite',
+  authenticateJWT,
+  authorizeRoles(['CLINIC_ADMIN']),
+  clinicController.inviteMember
+);
+
+router.post(
+  '/activate-member',
+  clinicController.activateMember
+);
+
 export default router;
