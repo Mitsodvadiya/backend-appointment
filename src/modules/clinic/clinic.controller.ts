@@ -57,6 +57,16 @@ export class ClinicController {
     }
   }
 
+  async getAllClinics(req: Request, res: Response): Promise<void> {
+    try {
+      const clinics = await clinicService.getAllClinics();
+      res.status(200).json(clinics);
+    } catch (error: any) {
+      console.error('Error fetching clinics:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch clinics' });
+    }
+  }
+
   async inviteMember(req: AuthRequest, res: Response): Promise<void> {
     try {
       const clinicId = req.params.id as string;
@@ -136,6 +146,23 @@ export class ClinicController {
     } catch (error: any) {
       console.error('Error fetching clinic members:', error);
       res.status(400).json({ error: error.message || 'Failed to fetch clinic members' });
+    }
+  }
+
+  async getClinicDoctors(req: Request, res: Response): Promise<void> {
+    try {
+      const clinicId = req.params.id as string;
+
+      if (!clinicId) {
+        res.status(400).json({ error: 'Clinic ID is required' });
+        return;
+      }
+
+      const doctors = await clinicService.getClinicDoctors(clinicId);
+      res.status(200).json(doctors);
+    } catch (error: any) {
+      console.error('Error fetching clinic doctors:', error);
+      res.status(400).json({ error: error.message || 'Failed to fetch clinic doctors' });
     }
   }
 

@@ -38,26 +38,20 @@ export class ClinicService {
     return result;
   }
 
-  async updateClinic(
-    clinicId: string,
-    data: { name?: string; address?: string; phone?: string }
-  ) {
-    const clinic = await prisma.clinic.findUnique({
-      where: { id: clinicId },
-    });
-
-    if (!clinic || clinic.deletedAt) {
-      throw new Error('Clinic not found');
-    }
-
+  async updateClinic(id: string, data: { name?: string; address?: string; phone?: string }) {
     const updatedClinic = await prisma.clinic.update({
-      where: { id: clinicId },
-      data: {
-        ...data,
-      },
+      where: { id },
+      data,
     });
 
     return updatedClinic;
+  }
+
+  async getAllClinics() {
+    const clinics = await prisma.clinic.findMany({
+      orderBy: { name: 'asc' },
+    });
+    return clinics;
   }
 
   async inviteMember(email: string, name: string, role: string, clinicId: string, inviterId: string, phone?: string) {
@@ -211,6 +205,42 @@ export class ClinicService {
     });
 
     return members;
+  }
+
+  async getClinicDoctors(clinicId: string) {
+    const clinic = await prisma.clinic.findUnique({ where: { id: clinicId } });
+    if (!clinic) {
+      throw new Error('Clinic not found');
+    }
+
+    const doctors = await prisma.clinicMember.findMany({
+      where: { 
+        clinicId,
+        role: 'DOCTOR',
+        user: {
+          isActive: true,
+          isAvailable: true,
+        }
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+            isActive: true,
+            isAvailable: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return doctors;
   }
 
   async updateMemberStatus(clinicId: string, memberUserId: string, isActive: boolean) {

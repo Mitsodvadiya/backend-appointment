@@ -549,7 +549,94 @@ Both fields are discretionary. Submit only what requires updating.
 ------------------------------------------------------------------------------------------------------
 ## Clinic Management
 
-### 1. Create Clinic
+### 1. Get All Clinics (Public API)
+Retrieves a list of all fully available, active clinics. This endpoint is purposefully public primarily for patients/apps to view the directory of clinics.
+
+- **URL:** `/clinic/`
+- **Method:** `GET`
+- **Auth Required:** No
+
+#### Success Response
+- **Code:** 200 OK
+```json
+[
+  {
+    "id": "uuid-clinic-1",
+    "name": "City Hospital",
+    "address": "123 Main St, New York",
+    "phone": "919876543210",
+    "createdAt": "2023-11-01T10:00:00.000Z",
+    "updatedAt": "2023-11-01T10:00:00.000Z",
+    "deletedAt": null
+  },
+  {
+    "id": "uuid-clinic-2",
+    "name": "Downtown Clinic",
+    "address": "456 Side St, New York",
+    "phone": "919876543211",
+    "createdAt": "2023-11-02T10:00:00.000Z",
+    "updatedAt": "2023-11-02T10:00:00.000Z",
+    "deletedAt": null
+  }
+]
+```
+
+#### Error Response
+- **Code:** 500 Internal Server Error
+```json
+{
+  "error": "Failed to fetch clinics"
+}
+```
+
+---
+
+### 2. Get Clinic Doctors (Public API)
+Retrieves a list of all active and available doctors associated with a specific clinic. This endpoint is purposefully public for patients/apps to view the list of doctors available at a clinic.
+
+- **URL:** `/clinic/:id/doctors`
+- **Method:** `GET`
+- **Auth Required:** No
+
+#### Parameters
+- **`id`** (Path Parameter) - The unique ID of the clinic.
+
+#### Success Response
+- **Code:** 200 OK
+```json
+[
+  {
+    "id": "uuid-clinicMember-string",
+    "clinicId": "uuid-clinic-string",
+    "userId": "uuid-user-string",
+    "role": "DOCTOR",
+    "createdAt": "2023-11-01T10:00:00.000Z",
+    "user": {
+      "id": "uuid-user-string",
+      "name": "Dr. Jane Doe",
+      "email": "doctor@clinic.com",
+      "phone": "919876543210",
+      "role": "DOCTOR",
+      "isActive": true,
+      "isAvailable": true,
+      "createdAt": "2023-11-01T10:00:00.000Z",
+      "updatedAt": "2023-11-01T10:05:00.000Z"
+    }
+  }
+]
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Clinic ID is required" // OR "Clinic not found"
+}
+```
+
+---
+
+### 3. Create Clinic
 Creates a new clinic. The clinic is associated with the active user who is assigned as a `CLINIC_ADMIN` member of this new clinic.
 
 - **URL:** `/clinic/`

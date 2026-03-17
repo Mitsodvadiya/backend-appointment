@@ -12,6 +12,12 @@ router.post(
   clinicController.createClinic
 );
 
+router.get(
+  '/',
+  authenticateJWT,
+  clinicController.getAllClinics
+);
+
 router.put(
   '/:id',
   authenticateJWT,
@@ -36,6 +42,12 @@ router.get(
   authenticateJWT,
   authorizeRoles(['CLINIC_ADMIN']),
   clinicController.getMembers
+);
+
+router.get(
+  '/:id/doctors',
+  authenticateJWT,
+  clinicController.getClinicDoctors
 );
 
 router.patch(
