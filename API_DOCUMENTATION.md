@@ -763,3 +763,108 @@ Activates the invited member's account, sets their password, and logs them in vi
   // OR "Account is already activated"
 }
 ```
+
+---
+
+### 5. Get Clinic Members
+Retrieves a list of all members associated with a specific clinic, along with their core User profiles.
+
+- **URL:** `/clinic/:id/members`
+- **Method:** `GET`
+- **Auth Required:** Yes (`Bearer <JWT>` with role `CLINIC_ADMIN`)
+
+#### Parameters
+- **`id`** (Path Parameter) - The unique ID of the clinic.
+
+#### Success Response
+- **Code:** 200 OK
+```json
+[
+  {
+    "id": "uuid-clinicMember-string",
+    "clinicId": "uuid-clinic-string",
+    "userId": "uuid-user-string",
+    "role": "DOCTOR",
+    "createdAt": "2023-11-01T10:00:00.000Z",
+    "user": {
+      "id": "uuid-user-string",
+      "name": "Dr. Jane Doe",
+      "email": "doctor@clinic.com",
+      "phone": "919876543210",
+      "role": "DOCTOR",
+      "isActive": true,
+      "isAvailable": true,
+      "createdAt": "2023-11-01T10:00:00.000Z",
+      "updatedAt": "2023-11-01T10:05:00.000Z"
+    }
+  }
+]
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Clinic ID is required" // OR "Clinic not found"
+}
+```
+- **Code:** 403 Forbidden
+```json
+{
+  "error": "Access denied. Insufficient permissions."
+}
+```
+
+---
+
+### 6. Update Clinic Member Status
+Updates the `isActive` state of a specific member inside the clinic. Used to activate or deactivate accounts locally.
+
+- **URL:** `/clinic/:id/members/:userId/status`
+- **Method:** `PATCH`
+- **Auth Required:** Yes (`Bearer <JWT>` with role `CLINIC_ADMIN`)
+
+#### Parameters
+- **`id`** (Path Parameter) - The unique ID of the clinic.
+- **`userId`** (Path Parameter) - The unique `User.id` belonging to the clinic member to update.
+
+#### Request Body
+```json
+{
+  "isActive": "boolean (Required. true or false)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Member status updated successfully",
+  "user": {
+    "id": "uuid-user-string",
+    "name": "Dr. Jane Doe",
+    "email": "doctor@clinic.com",
+    "phone": "919876543210",
+    "role": "DOCTOR",
+    "isActive": false,
+    "isAvailable": true,
+    "createdAt": "2023-11-01T10:00:00.000Z",
+    "updatedAt": "2023-11-01T10:10:00.000Z"
+  }
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "isActive boolean flag is required" 
+  // OR "User is not a member of this clinic"
+}
+```
+- **Code:** 403 Forbidden
+```json
+{
+  "error": "Access denied. Insufficient permissions."
+}
+```

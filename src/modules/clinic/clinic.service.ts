@@ -179,6 +179,72 @@ export class ClinicService {
       clinic: updatedUser.clinicMembers[0]?.clinic || null
     };
   }
+
+  // =========================
+  // CLINIC MEMBERS METHODS
+  // =========================
+
+  async getClinicMembers(clinicId: string) {
+    const clinic = await prisma.clinic.findUnique({ where: { id: clinicId } });
+    if (!clinic) {
+      throw new Error('Clinic not found');
+    }
+
+    const members = await prisma.clinicMember.findMany({
+      where: { clinicId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+            isActive: true,
+            isAvailable: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return members;
+  }
+
+  async updateMemberStatus(clinicId: string, memberUserId: string, isActive: boolean) {
+    const member = await prisma.clinicMember.findUnique({
+      where: {
+        clinicId_userId: {
+          clinicId,
+          userId: memberUserId,
+        },
+      },
+    });
+
+    if (!member) {
+      throw new Error('User is not a member of this clinic');
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: memberUserId },
+      data: { isActive },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        isActive: true,
+        isAvailable: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return updatedUser;
+  }
 }
 
 export const clinicService = new ClinicService();

@@ -31,4 +31,18 @@ router.post(
   clinicController.activateMember
 );
 
+router.get(
+  '/:id/members',
+  authenticateJWT,
+  authorizeRoles(['CLINIC_ADMIN']),
+  clinicController.getMembers
+);
+
+router.patch(
+  '/:id/members/:userId/status',
+  authenticateJWT,
+  authorizeRoles(['CLINIC_ADMIN']),
+  clinicController.updateMemberStatus
+);
+
 export default router;

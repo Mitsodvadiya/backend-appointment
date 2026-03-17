@@ -117,6 +117,55 @@ export class ClinicController {
       res.status(400).json({ error: error.message || 'Failed to activate account. The link may be invalid.' });
     }
   }
+
+  // =========================
+  // CLINIC MEMBERS METHODS
+  // =========================
+
+  async getMembers(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const clinicId = req.params.id as string;
+
+      if (!clinicId) {
+        res.status(400).json({ error: 'Clinic ID is required' });
+        return;
+      }
+
+      const members = await clinicService.getClinicMembers(clinicId);
+      res.status(200).json(members);
+    } catch (error: any) {
+      console.error('Error fetching clinic members:', error);
+      res.status(400).json({ error: error.message || 'Failed to fetch clinic members' });
+    }
+  }
+
+  async updateMemberStatus(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const clinicId = req.params.id as string;
+      const memberUserId = req.params.userId as string;
+      const { isActive } = req.body;
+
+      if (!clinicId || !memberUserId) {
+        res.status(400).json({ error: 'Clinic ID and User ID are required' });
+        return;
+      }
+
+      if (typeof isActive !== 'boolean') {
+        res.status(400).json({ error: 'isActive boolean flag is required' });
+        return;
+      }
+
+      const updatedUser = await clinicService.updateMemberStatus(clinicId, memberUserId, isActive);
+      
+      res.status(200).json({
+        message: 'Member status updated successfully',
+        user: updatedUser,
+      });
+    } catch (error: any) {
+      console.error('Error updating member status:', error);
+      res.status(400).json({ error: error.message || 'Failed to update member status' });
+    }
+  }
 }
 
 export const clinicController = new ClinicController();
