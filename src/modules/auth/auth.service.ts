@@ -12,9 +12,9 @@ export class AuthService {
   // =========================
   // TOKEN GENERATION HELPER
   // =========================
-  private generateTokens(payload: object) {
-    const token = jwt.sign(payload, env.jwtSecret, { expiresIn: env.jwtExpiresIn as any });
-    const refreshToken = jwt.sign(payload, env.jwtRefreshSecret, { expiresIn: env.jwtRefreshExpiresIn as any });
+  private generateTokens(payload: object, expiresIn: string = env.jwtExpiresIn, refreshExpiresIn: string = env.jwtRefreshExpiresIn) {
+    const token = jwt.sign(payload, env.jwtSecret, { expiresIn: expiresIn as any });
+    const refreshToken = jwt.sign(payload, env.jwtRefreshSecret, { expiresIn: refreshExpiresIn as any });
     return { token, refreshToken };
   }
 
@@ -210,10 +210,11 @@ export class AuthService {
         });
       }
 
-      const tokens = this.generateTokens({ 
-        id: patient.id, 
-        phone: patient.phone 
-      });
+      const tokens = this.generateTokens(
+        { id: patient.id, phone: patient.phone },
+        '7d',
+        '30d'
+      );
 
       const redirectTo = (!patient.name || patient.name.trim() === '') ? 'ONBOARDING' : 'DASHBOARD';
 
@@ -339,10 +340,11 @@ export class AuthService {
         throw new Error('Patient not found');
       }
 
-      const tokens = this.generateTokens({ 
-        id: patient.id, 
-        phone: patient.phone 
-      });
+      const tokens = this.generateTokens(
+        { id: patient.id, phone: patient.phone },
+        '7d',
+        '30d'
+      );
 
       return {
         token: tokens.token,

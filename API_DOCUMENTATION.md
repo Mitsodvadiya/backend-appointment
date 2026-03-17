@@ -71,15 +71,15 @@ In development mode (`NODE_ENV !== 'production'`), the mock OTP is always `12345
 ```
 
 #### Success Response
-Returns a JWT token, the patient object, and a redirection intent. 
+Returns a JWT token (Valid for 7 days), the patient object, and a redirection intent. 
 If the patient's name is not set, `redirectTo` will be `"ONBOARDING"`, otherwise `"DASHBOARD"`.
 
 - **Code:** 200 OK
 ```json
 {
   "message": "OTP verified successfully",
-  "token": "eyJhbGciOiJIUzI1...",
-  "refreshToken": "eyJhbGciOiJIUzI1...",
+  "token": "eyJhbGciOiJIUzI1...", // (Valid for 7 days)
+  "refreshToken": "eyJhbGciOiJIUzI1...", // (Valid for 30 days)
   "redirectTo": "ONBOARDING",
   "patient": {
     "id": "uuid-string",
