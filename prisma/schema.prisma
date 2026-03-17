@@ -1,0 +1,283 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =========================
+// ENUMS
+// =========================
+
+enum UserRole {
+  SUPER_ADMIN
+  CLINIC_ADMIN
+  DOCTOR
+  STAFF
+}
+
+enum QueueStatus {
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  SKIPPED
+}
+
+enum TokenSource {
+  MOBILE_APP
+  STAFF_PANEL
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum TokenActionType {
+  CALL
+  COMPLETE
+  SKIP
+  CANCEL
+}
+
+enum QueueSessionStatus {
+  ACTIVE
+  CLOSED
+}
+
+// =========================
+// USERS
+// =========================
+
+model User {
+  id       String  @id @default(uuid())
+  name     String
+  email    String? @unique
+  phone    String? @unique
+  password String?
+
+  role        UserRole
+  isActive    Boolean  @default(true)
+  isAvailable Boolean  @default(true)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  clinicMembers ClinicMember[]
+  schedules     DoctorSchedule[]
+  tokensCreated Token[]          @relation("TokenCreatedBy")
+  queueSessions QueueSession[]
+  visits        Visit[]
+  tokenActions  TokenAction[]
+}
+
+// =========================
+// CLINIC
+// =========================
+
+model Clinic {
+  id      String  @id @default(uuid())
+  name    String
+  address String
+  phone   String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  members   ClinicMember[]
+  schedules DoctorSchedule[]
+  queues    QueueSession[]
+  visits    Visit[]
+}
+
+// =========================
+// CLINIC MEMBERS
+// =========================
+
+model ClinicMember {
+  id String @id @default(uuid())
+
+  clinicId String
+  userId   String
+  role     UserRole
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@unique([clinicId, userId])
+}
+
+// =========================
+// PATIENT
+// =========================
+
+model Patient {
+  id String @id @default(uuid())
+
+  phone   String  @unique
+  name    String?
+  age     Int?
+  weight  Float?
+  gender  Gender?
+  address String?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  visits Visit[]
+
+  @@index([phone])
+}
+
+// =========================
+// DOCTOR SCHEDULE
+// =========================
+
+model DoctorSchedule {
+  id String @id @default(uuid())
+
+  doctorId String
+  clinicId String
+
+  dayOfWeek Int
+  startTime String
+  endTime   String
+
+  slotDuration Int
+  maxTokens    Int?
+
+  createdAt DateTime @default(now())
+
+  doctor User   @relation(fields: [doctorId], references: [id])
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@unique([doctorId, clinicId, dayOfWeek, startTime])
+  @@index([doctorId, clinicId])
+}
+
+// =========================
+// QUEUE SESSION
+// =========================
+
+model QueueSession {
+  id String @id @default(uuid())
+
+  clinicId String
+  doctorId String
+
+  date DateTime @db.Date
+
+  currentToken Int @default(0)
+  lastToken    Int @default(0)
+  totalTokens  Int @default(0)
+
+  avgTime Int?
+  status  QueueSessionStatus @default(ACTIVE)
+
+  createdAt DateTime @default(now())
+
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+  doctor User   @relation(fields: [doctorId], references: [id])
+
+  tokens Token[]
+
+  @@unique([doctorId, date])
+  @@index([clinicId, doctorId])
+  @@index([date])
+}
+
+// =========================
+// VISIT
+// =========================
+
+model Visit {
+  id String @id @default(uuid())
+
+  patientId String
+  doctorId  String
+  clinicId  String
+
+  reason String?
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  patient Patient @relation(fields: [patientId], references: [id])
+  doctor  User    @relation(fields: [doctorId], references: [id])
+  clinic  Clinic  @relation(fields: [clinicId], references: [id])
+
+  tokens Token[]
+
+  @@index([patientId])
+  @@index([doctorId, clinicId])
+}
+
+// =========================
+// TOKEN
+// =========================
+
+model Token {
+  id String @id @default(uuid())
+
+  tokenNumber Int
+
+  queueId String
+  visitId String
+
+  status QueueStatus @default(WAITING)
+  source TokenSource
+
+  createdBy String?
+
+  calledAt    DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  queue QueueSession @relation(fields: [queueId], references: [id])
+  visit Visit        @relation(fields: [visitId], references: [id])
+
+  creator User? @relation("TokenCreatedBy", fields: [createdBy], references: [id])
+
+  actions TokenAction[]
+
+  @@unique([queueId, tokenNumber])
+  @@index([queueId, status])
+  @@index([queueId, tokenNumber])
+  @@index([visitId])
+}
+
+// =========================
+// TOKEN ACTIONS
+// =========================
+
+model TokenAction {
+  id String @id @default(uuid())
+
+  tokenId String
+  userId  String
+
+  action TokenActionType
+
+  createdAt DateTime @default(now())
+
+  token Token @relation(fields: [tokenId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+
+  @@index([tokenId])
+}
