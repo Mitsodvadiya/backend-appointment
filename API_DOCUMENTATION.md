@@ -1053,3 +1053,311 @@ Delete an existing leave if it is cancelled.
 - **URL:** `/doctor/:clinicId/leaves/:leaveId`
 - **Method:** `DELETE`
 - **Auth Required:** Yes (`CLINIC_ADMIN` or `DOCTOR`)
+
+------------------------------------------------------------------------------------------------------
+## Queue Management
+
+### 1. Get Current Queue
+Retrieves the currently active queue session for a given doctor in a specific clinic. If no active queue exists for today, a new one is created.
+
+- **URL:** `/queue/current?doctorId=<id>&clinicId=<id>`
+- **Method:** `GET`
+- **Auth Required:** No
+
+#### Query Parameters
+- **`doctorId`** (Required) - ID of the doctor
+- **`clinicId`** (Required) - ID of the clinic
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "id": "uuid-queue",
+  "clinicId": "uuid-clinic",
+  "doctorId": "uuid-doctor",
+  "date": "2023-11-01T00:00:00.000Z",
+  "status": "ACTIVE",
+  "currentToken": 0,
+  "lastToken": 0,
+  "totalTokens": 0
+}
+```
+
+### 2. Get Queue Details
+Retrieves details of a specific queue session, including all tokens that are either in `WAITING` or `IN_PROGRESS` state.
+
+- **URL:** `/queue/:queueId`
+- **Method:** `GET`
+- **Auth Required:** No
+
+#### Parameters
+- **`queueId`** (Path Parameter) - ID of the queue session
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "id": "uuid-queue",
+  "tokens": [
+    {
+      "id": "uuid-token",
+      "tokenNumber": 1,
+      "status": "WAITING",
+      "visit": {
+        "patient": {}
+      }
+    }
+  ]
+}
+```
+
+### 3. Call Next Token
+Calls the next waiting token in the queue, updating its status to `IN_PROGRESS` and setting the queue's `currentToken`.
+
+- **URL:** `/queue/call-next`
+- **Method:** `POST`
+- **Auth Required:** Yes
+
+#### Request Body
+```json
+{
+  "queueId": "string (Required)",
+  "userId": "string (Required. The ID of the staff/doctor calling the token)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Token called",
+  "tokenNumber": 1
+}
+```
+
+### 4. Pause Queue
+Temporarily halts the queue session. The queue status becomes `BREAK`.
+
+- **URL:** `/queue/pause`
+- **Method:** `POST`
+- **Auth Required:** Yes (Must be the specific Doctor assigned to the queue)
+
+#### Request Body
+```json
+{
+  "queueId": "string (Required)",
+  "userId": "string (Required. ID of the doctor pausing the queue)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Queue paused successfully"
+}
+```
+
+#### Error Response
+- **Code:** 403 Forbidden
+```json
+{
+  "message": "Only the designated doctor can pause this queue."
+}
+```
+
+### 5. Resume Queue
+Resumes a temporarily halted queue session. The queue status becomes `ACTIVE`.
+
+- **URL:** `/queue/resume`
+- **Method:** `POST`
+- **Auth Required:** Yes (Must be the specific Doctor assigned to the queue)
+
+#### Request Body
+```json
+{
+  "queueId": "string (Required)",
+  "userId": "string (Required. ID of the doctor resuming the queue)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Queue resumed successfully"
+}
+```
+
+#### Error Response
+- **Code:** 403 Forbidden
+```json
+{
+  "message": "Only the designated doctor can resume this queue."
+}
+```
+
+### 6. Close Queue
+Marks a queue session as `CLOSED`.
+
+- **URL:** `/queue/close`
+- **Method:** `POST`
+- **Auth Required:** Yes (Must be the specific Doctor assigned to the queue)
+
+#### Request Body
+```json
+{
+  "queueId": "string (Required)",
+  "userId": "string (Required. ID of the doctor closing the queue)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Queue closed"
+}
+```
+
+#### Error Response
+- **Code:** 403 Forbidden
+```json
+{
+  "message": "Only the designated doctor can close this queue."
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Queue closed"
+}
+```
+
+------------------------------------------------------------------------------------------------------
+## Token Management
+
+### 1. Create Token (Add Patient to Queue)
+Creates a new token and adds a patient to the current active queue for a specific doctor.
+
+- **URL:** `/queue/tokens`
+- **Method:** `POST`
+- **Auth Required:** Yes
+
+#### Request Body
+```json
+{
+  "doctorId": "string (Required)",
+  "clinicId": "string (Required)",
+  "patientId": "string (Required)",
+  "reason": "string (Optional)",
+  "source": "string (Optional. Default: WALK_IN | ONLINE | KIOSK)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "tokenId": "uuid-token",
+  "tokenNumber": 5
+}
+```
+
+### 2. Get Token Status
+Retrieves the real-time status of a specific token, including how many people are ahead in the queue.
+
+- **URL:** `/queue/tokens/:id`
+- **Method:** `GET`
+- **Auth Required:** No
+
+#### Parameters
+- **`id`** (Path Parameter) - Token ID
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "tokenNumber": 5,
+  "status": "WAITING",
+  "currentToken": 2,
+  "peopleAhead": 3
+}
+```
+
+### 3. Complete Token
+Marks a token as `COMPLETED`.
+
+- **URL:** `/queue/tokens/:id/complete`
+- **Method:** `POST`
+- **Auth Required:** Yes
+
+#### Parameters
+- **`id`** (Path Parameter) - Token ID
+
+#### Request Body
+```json
+{
+  "userId": "string (Required. ID of the staff/doctor completing the token)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Token completed"
+}
+```
+
+### 4. Skip Token
+Marks a token as `SKIPPED`.
+
+- **URL:** `/queue/tokens/:id/skip`
+- **Method:** `POST`
+- **Auth Required:** Yes
+
+#### Parameters
+- **`id`** (Path Parameter) - Token ID
+
+#### Request Body
+```json
+{
+  "userId": "string (Required. ID of the staff/doctor skipping the token)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Token skipped"
+}
+```
+
+### 5. Cancel Token
+Marks a token as `CANCELLED`.
+
+- **URL:** `/queue/tokens/:id/cancel`
+- **Method:** `POST`
+- **Auth Required:** Yes
+
+#### Parameters
+- **`id`** (Path Parameter) - Token ID
+
+#### Request Body
+```json
+{
+  "userId": "string (Required. ID of the staff/doctor cancelling the token)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Token cancelled"
+}
+```

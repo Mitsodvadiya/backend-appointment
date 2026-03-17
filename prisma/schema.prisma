@@ -51,6 +51,7 @@ enum TokenActionType {
 
 enum QueueSessionStatus {
   ACTIVE
+  BREAK
   CLOSED
 }
 
