@@ -955,3 +955,101 @@ Updates the `isActive` state of a specific member inside the clinic. Used to act
   "error": "Access denied. Insufficient permissions."
 }
 ```
+
+------------------------------------------------------------------------------------------------------
+## Doctor Schedule & Leaves Management
+
+### 1. Doctor Schedule - Get Working Hours
+Fetches the designated weekly recurring schedule blocks for a specific doctor.
+
+- **URL:** `/doctor/:clinicId/:doctorId/schedule`
+- **Method:** `GET`
+- **Auth Required:** No (Public or authenticated)
+
+#### Response
+- **Code:** 200 OK
+```json
+[
+  {
+    "id": "uuid",
+    "doctorId": "doc-uuid",
+    "clinicId": "clinic-uuid",
+    "dayOfWeek": 1, 
+    "startTime": "09:00",
+    "endTime": "13:00",
+    "slotDuration": 15,
+    "maxTokens": null,
+    "createdAt": "2023-11-01T10:00:00.000Z"
+  }
+]
+```
+
+### 2. Doctor Schedule - Bulk Update Working Hours
+Replaces the doctor's entire weekly schedule with the new payload payload. Used for bulk saving changes.
+
+- **URL:** `/doctor/:clinicId/:doctorId/schedule`
+- **Method:** `POST`
+- **Auth Required:** Yes (`CLINIC_ADMIN` or the specific `DOCTOR`)
+
+#### Request Body
+```json
+[
+  {
+    "dayOfWeek": 1,
+    "startTime": "09:00",
+    "endTime": "13:00",
+    "slotDuration": 15,
+    "maxTokens": 10
+  },
+  {
+    "dayOfWeek": 1,
+    "startTime": "14:00",
+    "endTime": "18:00",
+    "slotDuration": 15
+  }
+]
+```
+
+### 3. Doctor Leaves - Get Leaves
+Fetches exceptions/leaves when the doctor is not available. Also supports optional query params.
+
+- **URL:** `/doctor/:clinicId/:doctorId/leaves?startDate=2024-01-01&endDate=2024-02-01`
+- **Method:** `GET`
+- **Auth Required:** No
+
+#### Response
+- **Code:** 200 OK
+```json
+[
+  {
+    "id": "uuid",
+    "doctorId": "doc-uuid",
+    "clinicId": "clinic-uuid",
+    "date": "2024-01-15T00:00:00.000Z",
+    "reason": "Personal Leave",
+    "createdAt": "2023-11-01T10:00:00.000Z"
+  }
+]
+```
+
+### 4. Doctor Leaves - Bulk Document Leaves
+Record specific dates when a doctor is not actively working. Overrides their regular schedule rule.
+
+- **URL:** `/doctor/:clinicId/:doctorId/leaves`
+- **Method:** `POST`
+- **Auth Required:** Yes (`CLINIC_ADMIN` or the specific `DOCTOR`)
+
+#### Request Body
+```json
+[
+  { "date": "2024-01-15", "reason": "Personal Leave" },
+  { "date": "2024-01-16", "reason": "Sick Leave" }
+]
+```
+
+### 5. Doctor Leaves - Delete a Leave
+Delete an existing leave if it is cancelled.
+
+- **URL:** `/doctor/:clinicId/leaves/:leaveId`
+- **Method:** `DELETE`
+- **Auth Required:** Yes (`CLINIC_ADMIN` or `DOCTOR`)

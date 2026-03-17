@@ -79,6 +79,7 @@ model User {
   queueSessions QueueSession[]
   visits        Visit[]
   tokenActions  TokenAction[]
+  DoctorLeave   DoctorLeave[]
 }
 
 // =========================
@@ -95,10 +96,11 @@ model Clinic {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  members   ClinicMember[]
-  schedules DoctorSchedule[]
-  queues    QueueSession[]
-  visits    Visit[]
+  members     ClinicMember[]
+  schedules   DoctorSchedule[]
+  queues      QueueSession[]
+  visits      Visit[]
+  DoctorLeave DoctorLeave[]
 }
 
 // =========================
@@ -167,6 +169,24 @@ model DoctorSchedule {
 
   @@unique([doctorId, clinicId, dayOfWeek, startTime])
   @@index([doctorId, clinicId])
+}
+
+model DoctorLeave {
+  id String @id @default(cuid())
+
+  doctorId String
+  clinicId String
+
+  date   DateTime // specific date
+  reason String? // "Sick", "Personal", etc.
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  doctor User   @relation(fields: [doctorId], references: [id])
+  clinic Clinic @relation(fields: [clinicId], references: [id])
+
+  @@unique([doctorId, clinicId, date])
 }
 
 // =========================
