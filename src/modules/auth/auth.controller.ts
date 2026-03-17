@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { authService } from './auth.service';
+import { AuthRequest } from '../../common/middleware/auth.middleware';
 
 export class AuthController {
   // =========================
@@ -194,6 +195,43 @@ export class AuthController {
       res.status(200).json(response);
     } catch (error: any) {
       res.status(401).json({ error: error.message || 'Invalid refresh token' });
+    }
+  }
+
+  // =========================
+  // USER PROFILE METHODS
+  // =========================
+
+  async me(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const response = await authService.getProfile(userId);
+      res.status(200).json(response);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Failed to fetch profile' });
+    }
+  }
+
+  async updateProfile(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.id;
+      const { name, phone } = req.body;
+
+      if (!userId) {
+        res.status(401).json({ error: 'Unauthorized' });
+        return;
+      }
+
+      const response = await authService.updateProfile(userId, { name, phone });
+      res.status(200).json(response);
+    } catch (error: any) {
+      res.status(400).json({ error: error.message || 'Failed to update profile' });
     }
   }
 }

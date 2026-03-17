@@ -353,6 +353,74 @@ export class AuthService {
       throw new Error(error.message || 'Invalid or expired refresh token');
     }
   }
+
+  // =========================
+  // USER PROFILE METHODS
+  // =========================
+
+  async getProfile(userId: string) {
+    try {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        include: {
+          clinicMembers: {
+            include: {
+              clinic: true,
+            },
+          },
+        },
+      });
+
+      if (!user || user.deletedAt) {
+        throw new Error('User not found');
+      }
+
+      // Exclude password from the returned profile
+      const { password, ...userProfile } = user;
+
+      return {
+        user: userProfile,
+      };
+    } catch (error: any) {
+      console.error('Error fetching user profile:', error);
+      throw new Error(error.message || 'Failed to fetch user profile');
+    }
+  }
+
+  async updateProfile(userId: string, data: { name?: string; phone?: string }) {
+    try {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+
+      if (!user || user.deletedAt) {
+        throw new Error('User not found');
+      }
+
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: {
+          name: data.name !== undefined ? data.name : user.name,
+          phone: data.phone !== undefined ? data.phone : user.phone,
+        },
+        include: {
+          clinicMembers: {
+            include: {
+              clinic: true,
+            },
+          },
+        },
+      });
+
+      const { password, ...userProfile } = updatedUser;
+
+      return {
+        message: 'Profile updated successfully',
+        user: userProfile,
+      };
+    } catch (error: any) {
+      console.error('Error updating user profile:', error);
+      throw new Error(error.message || 'Failed to update user profile');
+    }
+  }
 }
 
 export const authService = new AuthService();

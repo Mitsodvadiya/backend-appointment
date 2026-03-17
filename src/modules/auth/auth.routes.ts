@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authController } from './auth.controller';
+import { authenticateJWT } from '../../common/middleware/auth.middleware';
 
 const router = Router();
 
@@ -11,6 +12,10 @@ router.post('/refresh', authController.refresh);
 router.post('/logout', authController.logout);
 router.post('/forgot-password', authController.forgotPassword);
 router.post('/reset-password', authController.resetPassword);
+
+// User Profile Routes
+router.get('/me', authenticateJWT, authController.me);
+router.patch('/me', authenticateJWT, authController.updateProfile);
 
 // Patient Auth Routes (OTP)
 router.post('/send-otp', authController.sendOtp);

@@ -444,6 +444,108 @@ Completes the password reset flow by verifying the short-lived JWT token (from t
 ```
 
 ---
+
+### 8. Get Current Profile (Web Portal)
+Retrieves the profile of the currently authenticated web user, encompassing their standard details alongside an array of every clinic they are affiliated with.
+
+- **URL:** `/auth/me`
+- **Method:** `GET`
+- **Auth Required:** Yes (`Bearer <JWT>`)
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "user": {
+    "id": "uuid-string",
+    "name": "Dr. Smith",
+    "email": "admin@clinic.com",
+    "phone": "919876543210",
+    "role": "CLINIC_ADMIN",
+    "isActive": true,
+    "isAvailable": true,
+    "createdAt": "2023-10-25T10:00:00.000Z",
+    "updatedAt": "2023-10-26T10:00:00.000Z",
+    "deletedAt": null,
+    "clinicMembers": [
+      {
+        "id": "uuid-string",
+        "clinicId": "uuid-clinic-1",
+        "userId": "uuid-string",
+        "role": "CLINIC_ADMIN",
+        "createdAt": "2023-10-25T10:05:00.000Z",
+        "clinic": {
+          "id": "uuid-clinic-1",
+          "name": "City Hospital",
+          "address": "123 Main St, New York",
+          "phone": "919876543210",
+          "createdAt": "2023-10-25T10:05:00.000Z",
+          "updatedAt": "2023-10-25T10:05:00.000Z",
+          "deletedAt": null
+        }
+      }
+    ]
+  }
+}
+```
+
+#### Error Response
+- **Code:** 401 Unauthorized
+```json
+{
+  "error": "Unauthorized" 
+}
+```
+
+---
+
+### 9. Update Current Profile (Web Portal)
+Updates the `name` and/or `phone` number of the currently authenticated web user. Sensitive attributes like `email` or `role` are strictly immutable via this endpoint.
+
+- **URL:** `/auth/me`
+- **Method:** `PATCH`
+- **Auth Required:** Yes (`Bearer <JWT>`)
+
+#### Request Body
+Both fields are discretionary. Submit only what requires updating.
+```json
+{
+  "name": "string (Optional)",
+  "phone": "string (Optional)"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Profile updated successfully",
+  "user": {
+    "id": "uuid-string",
+    "name": "Dr. John Smith",
+    "email": "admin@clinic.com",
+    "phone": "919876543211",
+    "role": "CLINIC_ADMIN",
+    // ... including nested clinicMembers structure
+  }
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Failed to update profile"
+}
+```
+- **Code:** 401 Unauthorized
+```json
+{
+  "error": "Unauthorized" 
+}
+```
+
+---
 ------------------------------------------------------------------------------------------------------
 ## Clinic Management
 
