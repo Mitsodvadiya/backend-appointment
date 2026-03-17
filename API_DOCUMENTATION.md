@@ -442,3 +442,113 @@ Completes the password reset flow by verifying the short-lived JWT token (from t
   // OR "Failed to reset password. The link may be invalid."
 }
 ```
+
+---
+------------------------------------------------------------------------------------------------------
+## Clinic Management
+
+### 1. Create Clinic
+Creates a new clinic. The clinic is associated with the active user who is assigned as a `CLINIC_ADMIN` member of this new clinic.
+
+- **URL:** `/clinic/`
+- **Method:** `POST`
+- **Auth Required:** Yes (`Bearer <JWT>` with role `CLINIC_ADMIN`)
+
+#### Request Body
+```json
+{
+  "name": "string (Required. Example: City Hospital)",
+  "address": "string (Required. Example: 123 Main St, New York)",
+  "phone": "string (Optional. Example: 919876543210)"
+}
+```
+
+#### Success Response
+- **Code:** 201 Created
+```json
+{
+  "message": "Clinic created successfully",
+  "clinic": {
+    "id": "uuid-string",
+    "name": "City Hospital",
+    "address": "123 Main St, New York",
+    "phone": "919876543210",
+    "createdAt": "2023-11-01T10:00:00.000Z",
+    "updatedAt": "2023-11-01T10:00:00.000Z",
+    "deletedAt": null
+  }
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Name and address are required"
+}
+```
+- **Code:** 401 Unauthorized
+```json
+{
+  "error": "Unauthorized to create clinic"
+}
+```
+- **Code:** 403 Forbidden
+```json
+{
+  "error": "Access denied. Insufficient permissions."
+}
+```
+
+---
+
+### 2. Update Clinic
+Updates an existing clinic's details.
+
+- **URL:** `/clinic/:id`
+- **Method:** `PUT`
+- **Auth Required:** Yes (`Bearer <JWT>` with role `CLINIC_ADMIN`)
+
+#### Parameters
+- **`id`** (Path Parameter) - The unique ID of the clinic to update.
+
+#### Request Body
+All fields are optional, you only need to pass the fields you wish to update.
+```json
+{
+  "name": "string",
+  "address": "string",
+  "phone": "string"
+}
+```
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "message": "Clinic updated successfully",
+  "clinic": {
+    "id": "uuid-string",
+    "name": "City Hospital (Updated)",
+    "address": "123 Main St, New York",
+    "phone": "919876543210",
+    "createdAt": "2023-11-01T10:00:00.000Z",
+    "updatedAt": "2023-11-01T10:10:00.000Z",
+    "deletedAt": null
+  }
+}
+```
+
+#### Error Response
+- **Code:** 400 Bad Request
+```json
+{
+  "error": "Clinic ID is required" // OR "Failed to update clinic"
+}
+```
+- **Code:** 403 Forbidden
+```json
+{
+  "error": "Access denied. Insufficient permissions."
+}
+```
