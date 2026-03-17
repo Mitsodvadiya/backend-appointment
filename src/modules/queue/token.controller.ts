@@ -2,9 +2,10 @@ import { Request, Response } from "express";
 import { prisma } from "../../prisma/client";
 import { getOrCreateQueueSession } from "./queue.service";
 import { emitQueueUpdate } from "./queue.socket";
+import { sendSuccess, sendError } from "../../common/utils/response.util";
 
 // POST /tokens
-export const createToken = async (req: Request, res: Response): Promise<void> => {
+export const createToken = async (req: Request, res: Response): Promise<any> => {
   const { doctorId, clinicId, patientId, reason, source } = req.body;
 
   try {
@@ -14,8 +15,7 @@ export const createToken = async (req: Request, res: Response): Promise<void> =>
     });
 
     if (!patient) {
-      res.status(404).json({ message: "Patient not found" });
-      return;
+      return sendError(res, 404, "Patient not found");
     }
 
     // Check if patient already has an active token
@@ -76,17 +76,17 @@ export const createToken = async (req: Request, res: Response): Promise<void> =>
     console.log(`[Socket Logger] Token Created: ${result.token.tokenNumber}`);
     await emitQueueUpdate(result.queue.id);
 
-    res.json({
+    return sendSuccess(res, 200, "Token created successfully", {
       tokenId: result.token.id,
       tokenNumber: result.token.tokenNumber
     });
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return sendError(res, 400, "Failed to create token", err);
   }
 };
 
 // GET /tokens/:id
-export const getTokenStatus = async (req: Request, res: Response): Promise<void> => {
+export const getTokenStatus = async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id as string;
 
@@ -98,25 +98,24 @@ export const getTokenStatus = async (req: Request, res: Response): Promise<void>
     });
 
     if (!token) {
-      res.status(404).json({ message: "Token not found" });
-      return;
+      return sendError(res, 404, "Token not found");
     }
 
     const peopleAhead = token.tokenNumber - token.queue.currentToken;
 
-    res.json({
+    return sendSuccess(res, 200, "Token status retrieved successfully", {
       tokenNumber: token.tokenNumber,
       status: token.status,
       currentToken: token.queue!.currentToken,
       peopleAhead
     });
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return sendError(res, 400, "Failed to retrieve token status", err);
   }
 };
 
 // POST /tokens/:id/complete
-export const completeToken = async (req: Request, res: Response): Promise<void> => {
+export const completeToken = async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id as string;
     const userId = req.body.userId as string;
@@ -126,23 +125,19 @@ export const completeToken = async (req: Request, res: Response): Promise<void> 
       include: { queue: true }
     });
     if (!existingToken) {
-      res.status(404).json({ message: "Token not found" });
-      return;
+      return sendError(res, 404, "Token not found");
     }
 
     if (existingToken.status === "COMPLETED") {
-      res.status(400).json({ message: "Token is already completed" });
-      return;
+      return sendError(res, 400, "Token is already completed");
     }
     if (existingToken.status === "CANCELLED") {
-      res.status(400).json({ message: "Token is cancelled and cannot be completed" });
-      return;
+      return sendError(res, 400, "Token is cancelled and cannot be completed");
     }
 
     // Role Validation: Only the doctor of this queue can complete tokens
     if (existingToken.queue.doctorId !== userId) {
-      res.status(403).json({ message: "Only the doctor assigned to this queue can complete tokens." });
-      return;
+      return sendError(res, 403, "Only the doctor assigned to this queue can complete tokens.");
     }
 
     const token = await prisma.token.update({
@@ -164,14 +159,14 @@ export const completeToken = async (req: Request, res: Response): Promise<void> 
     console.log(`[Socket Logger] Token Completed: ${existingToken.tokenNumber}`);
     await emitQueueUpdate(token.queueId);
 
-    res.json({ message: "Token completed" });
+    return sendSuccess(res, 200, "Token completed");
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return sendError(res, 400, "Failed to complete token", err);
   }
 };
 
 // POST /tokens/:id/skip
-export const skipToken = async (req: Request, res: Response): Promise<void> => {
+export const skipToken = async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id as string;
     const userId = req.body.userId as string;
@@ -181,23 +176,19 @@ export const skipToken = async (req: Request, res: Response): Promise<void> => {
       include: { queue: true } 
     });
     if (!existingToken) {
-      res.status(404).json({ message: "Token not found" });
-      return;
+      return sendError(res, 404, "Token not found");
     }
 
     if (existingToken.status === "SKIPPED") {
-      res.status(400).json({ message: "Token is already skipped" });
-      return;
+      return sendError(res, 400, "Token is already skipped");
     }
     if (existingToken.status === "COMPLETED" || existingToken.status === "CANCELLED") {
-      res.status(400).json({ message: `Token is ${existingToken.status.toLowerCase()} and cannot be skipped` });
-      return;
+      return sendError(res, 400, `Token is ${existingToken.status.toLowerCase()} and cannot be skipped`);
     }
 
     // Role Validation: Only the doctor of this queue can skip tokens
     if (existingToken.queue.doctorId !== userId) {
-      res.status(403).json({ message: "Only the doctor assigned to this queue can skip tokens." });
-      return;
+      return sendError(res, 403, "Only the doctor assigned to this queue can skip tokens.");
     }
 
     const token = await prisma.token.update({
@@ -216,14 +207,14 @@ export const skipToken = async (req: Request, res: Response): Promise<void> => {
     console.log(`[Socket Logger] Token Skipped: ${existingToken.tokenNumber}`);
     await emitQueueUpdate(token.queueId);
 
-    res.json({ message: "Token skipped" });
+    return sendSuccess(res, 200, "Token skipped");
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return sendError(res, 400, "Failed to skip token", err);
   }
 };
 
 // POST /tokens/:id/cancel
-export const cancelToken = async (req: Request, res: Response): Promise<void> => {
+export const cancelToken = async (req: Request, res: Response): Promise<any> => {
   try {
     const id = req.params.id as string;
     const userId = req.body.userId as string;
@@ -233,23 +224,19 @@ export const cancelToken = async (req: Request, res: Response): Promise<void> =>
       include: { queue: true, visit: true } 
     });
     if (!existingToken) {
-      res.status(404).json({ message: "Token not found" });
-      return;
+      return sendError(res, 404, "Token not found");
     }
 
     if (existingToken.status === "CANCELLED") {
-      res.status(400).json({ message: "Token is already cancelled" });
-      return;
+      return sendError(res, 400, "Token is already cancelled");
     }
     if (existingToken.status === "COMPLETED") {
-      res.status(400).json({ message: "Token is completed and cannot be cancelled" });
-      return;
+      return sendError(res, 400, "Token is completed and cannot be cancelled");
     }
 
     // Role Validation: Only doctor or patient can cancel
     if (existingToken.queue.doctorId !== userId && existingToken.visit.patientId !== userId) {
-      res.status(403).json({ message: "Only the doctor or the patient can cancel this token." });
-      return;
+      return sendError(res, 403, "Only the doctor or the patient can cancel this token.");
     }
 
     const token = await prisma.token.update({
@@ -268,8 +255,8 @@ export const cancelToken = async (req: Request, res: Response): Promise<void> =>
     console.log(`[Socket Logger] Token Cancelled: ${existingToken.tokenNumber}`);
     await emitQueueUpdate(token.queueId);
 
-    res.json({ message: "Token cancelled" });
+    return sendSuccess(res, 200, "Token cancelled");
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return sendError(res, 400, "Failed to cancel token", err);
   }
 };

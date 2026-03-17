@@ -1,49 +1,44 @@
 import { Response } from 'express';
 import { patientService } from './patient.service';
 import { AuthRequest } from '../../common/middleware/auth.middleware';
+import { sendSuccess, sendError } from '../../common/utils/response.util';
 
 export class PatientController {
-  async completeProfile(req: AuthRequest, res: Response): Promise<void> {
+  async completeProfile(req: AuthRequest, res: Response): Promise<any> {
     try {
       const patientId = req.user?.id;
 
       if (!patientId) {
-        res.status(401).json({ error: 'Unauthorized' });
-        return;
+        return sendError(res, 401, 'Unauthorized');
       }
 
       const updatedPatient = await patientService.completeProfile(patientId, req.body);
 
-      res.status(200).json({
-        message: 'Profile completed successfully',
-        patient: updatedPatient,
-      });
-    } catch (error) {
+      return sendSuccess(res, 200, 'Profile completed successfully', updatedPatient);
+    } catch (error: any) {
       console.error('completeProfile error:', error);
-      res.status(500).json({ error: 'Failed to complete profile' });
+      return sendError(res, 500, 'Failed to complete profile', error);
     }
   }
 
-  async getPatientByPhone(req: AuthRequest, res: Response): Promise<void> {
+  async getPatientByPhone(req: AuthRequest, res: Response): Promise<any> {
     try {
       const phone = req.query.phone as string;
 
       if (!phone) {
-        res.status(400).json({ error: 'Phone number is required' });
-        return;
+        return sendError(res, 400, 'Phone number is required');
       }
 
       const patient = await patientService.findByPhone(phone);
 
       if (!patient) {
-        res.status(404).json({ error: 'Patient not found' });
-        return;
+        return sendError(res, 404, 'Patient not found');
       }
 
-      res.status(200).json(patient);
-    } catch (error) {
+      return sendSuccess(res, 200, 'Patient retrieved successfully', patient);
+    } catch (error: any) {
       console.error('getPatientByPhone error:', error);
-      res.status(500).json({ error: 'Failed to search for patient' });
+      return sendError(res, 500, 'Failed to search for patient', error);
     }
   }
 }

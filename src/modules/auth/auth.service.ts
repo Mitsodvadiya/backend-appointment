@@ -216,12 +216,9 @@ export class AuthService {
         '30d'
       );
 
-      const redirectTo = (!patient.name || patient.name.trim() === '') ? 'ONBOARDING' : 'DASHBOARD';
-
       return {
         token: tokens.token,
         refreshToken: tokens.refreshToken,
-        redirectTo,
         patient,
       };
     } catch (error: any) {

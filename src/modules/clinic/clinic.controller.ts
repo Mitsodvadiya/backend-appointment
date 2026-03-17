@@ -1,22 +1,21 @@
 import { Request, Response } from 'express';
 import { clinicService } from './clinic.service';
 import { AuthRequest } from '../../common/middleware/auth.middleware';
+import { sendSuccess, sendError } from '../../common/utils/response.util';
 
 export class ClinicController {
-  async createClinic(req: AuthRequest, res: Response): Promise<void> {
+  async createClinic(req: AuthRequest, res: Response): Promise<any> {
     try {
       const { name, address, phone } = req.body;
       const ownerId = req.user?.id;
       const ownerRole = req.user?.role;
 
       if (!name || !address) {
-        res.status(400).json({ error: 'Name and address are required' });
-        return;
+        return sendError(res, 400, 'Name and address are required');
       }
 
       if (!ownerId || !ownerRole) {
-        res.status(401).json({ error: 'Unauthorized to create clinic' });
-        return;
+        return sendError(res, 401, 'Unauthorized to create clinic');
       }
 
       const clinic = await clinicService.createClinic(
@@ -25,90 +24,79 @@ export class ClinicController {
         ownerRole
       );
 
-      res.status(201).json({
-        message: 'Clinic created successfully',
-        clinic,
-      });
+      return sendSuccess(res, 201, 'Clinic created successfully', clinic);
     } catch (error: any) {
       console.error('Error creating clinic:', error);
-      res.status(500).json({ error: error.message || 'Failed to create clinic' });
+      return sendError(res, 500, 'Failed to create clinic', error);
     }
   }
 
-  async updateClinic(req: AuthRequest, res: Response): Promise<void> {
+  async updateClinic(req: AuthRequest, res: Response): Promise<any> {
     try {
       const id = req.params.id as string;
       const { name, address, phone } = req.body;
 
       if (!id) {
-        res.status(400).json({ error: 'Clinic ID is required' });
-        return;
+        return sendError(res, 400, 'Clinic ID is required');
       }
 
       const updatedClinic = await clinicService.updateClinic(id, { name, address, phone });
 
-      res.status(200).json({
-        message: 'Clinic updated successfully',
-        clinic: updatedClinic,
-      });
+      return sendSuccess(res, 200, 'Clinic updated successfully', updatedClinic);
     } catch (error: any) {
       console.error('Error updating clinic:', error);
-      res.status(400).json({ error: error.message || 'Failed to update clinic' });
+      return sendError(res, 400, 'Failed to update clinic', error);
     }
   }
 
-  async getAllClinics(req: Request, res: Response): Promise<void> {
+  async getAllClinics(req: Request, res: Response): Promise<any> {
     try {
       const clinics = await clinicService.getAllClinics();
-      res.status(200).json(clinics);
+      return sendSuccess(res, 200, 'Clinics retrieved successfully', clinics);
     } catch (error: any) {
       console.error('Error fetching clinics:', error);
-      res.status(500).json({ error: error.message || 'Failed to fetch clinics' });
+      return sendError(res, 500, 'Failed to fetch clinics', error);
     }
   }
 
-  async inviteMember(req: AuthRequest, res: Response): Promise<void> {
+  async inviteMember(req: AuthRequest, res: Response): Promise<any> {
     try {
       const clinicId = req.params.id as string;
       const inviterId = req.user?.id;
       const { email, name, role, phone } = req.body;
 
       if (!clinicId) {
-        res.status(400).json({ error: 'Clinic ID is required' });
-        return;
+        return sendError(res, 400, 'Clinic ID is required');
       }
 
       if (!email || !name || !role) {
-        res.status(400).json({ error: 'Email, name, and role are required' });
-        return;
+        return sendError(res, 400, 'Email, name, and role are required');
       }
 
       const response = await clinicService.inviteMember(email, name, role, clinicId, inviterId as string, phone);
 
-      res.status(200).json(response);
+      return sendSuccess(res, 200, response.message, response);
     } catch (error: any) {
       console.error('Error inviting member:', error);
-      res.status(400).json({ error: error.message || 'Failed to invite member' });
+      return sendError(res, 400, 'Failed to invite member', error);
     }
   }
 
-  async activateMember(req: Request, res: Response): Promise<void> {
+  async activateMember(req: Request, res: Response): Promise<any> {
     try {
       const { token, newPassword } = req.body;
 
       if (!token || !newPassword) {
-        res.status(400).json({ error: 'Token and new password are required' });
-        return;
+        return sendError(res, 400, 'Token and new password are required');
       }
 
       if (newPassword.length < 6) {
-        res.status(400).json({ error: 'Password must be at least 6 characters long' });
-        return;
+        return sendError(res, 400, 'Password must be at least 6 characters long');
       }
 
       const response = await clinicService.activateMember(token, newPassword);
       
-      const { refreshToken, ...responseData } = response;
+      const { refreshToken, message, ...responseData } = response;
 
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
@@ -117,14 +105,13 @@ export class ClinicController {
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       });
 
-      res.status(200).json(responseData);
+      return sendSuccess(res, 200, message, responseData);
     } catch (error: any) {
       console.error('Error activating member:', error);
       if (error.name === 'TokenExpiredError') {
-         res.status(400).json({ error: 'Invite link has expired. Please request a new one.' });
-         return;
+         return sendError(res, 400, 'Invite link has expired. Please request a new one.');
       }
-      res.status(400).json({ error: error.message || 'Failed to activate account. The link may be invalid.' });
+      return sendError(res, 400, 'Failed to activate account. The link may be invalid.', error);
     }
   }
 
@@ -132,65 +119,58 @@ export class ClinicController {
   // CLINIC MEMBERS METHODS
   // =========================
 
-  async getMembers(req: AuthRequest, res: Response): Promise<void> {
+  async getMembers(req: AuthRequest, res: Response): Promise<any> {
     try {
       const clinicId = req.params.id as string;
 
       if (!clinicId) {
-        res.status(400).json({ error: 'Clinic ID is required' });
-        return;
+        return sendError(res, 400, 'Clinic ID is required');
       }
 
       const members = await clinicService.getClinicMembers(clinicId);
-      res.status(200).json(members);
+      return sendSuccess(res, 200, 'Members retrieved successfully', members);
     } catch (error: any) {
       console.error('Error fetching clinic members:', error);
-      res.status(400).json({ error: error.message || 'Failed to fetch clinic members' });
+      return sendError(res, 400, 'Failed to fetch clinic members', error);
     }
   }
 
-  async getClinicDoctors(req: Request, res: Response): Promise<void> {
+  async getClinicDoctors(req: Request, res: Response): Promise<any> {
     try {
       const clinicId = req.params.id as string;
 
       if (!clinicId) {
-        res.status(400).json({ error: 'Clinic ID is required' });
-        return;
+        return sendError(res, 400, 'Clinic ID is required');
       }
 
       const doctors = await clinicService.getClinicDoctors(clinicId);
-      res.status(200).json(doctors);
+      return sendSuccess(res, 200, 'Doctors retrieved successfully', doctors);
     } catch (error: any) {
       console.error('Error fetching clinic doctors:', error);
-      res.status(400).json({ error: error.message || 'Failed to fetch clinic doctors' });
+      return sendError(res, 400, 'Failed to fetch clinic doctors', error);
     }
   }
 
-  async updateMemberStatus(req: AuthRequest, res: Response): Promise<void> {
+  async updateMemberStatus(req: AuthRequest, res: Response): Promise<any> {
     try {
       const clinicId = req.params.id as string;
       const memberUserId = req.params.userId as string;
       const { isActive } = req.body;
 
       if (!clinicId || !memberUserId) {
-        res.status(400).json({ error: 'Clinic ID and User ID are required' });
-        return;
+        return sendError(res, 400, 'Clinic ID and User ID are required');
       }
 
       if (typeof isActive !== 'boolean') {
-        res.status(400).json({ error: 'isActive boolean flag is required' });
-        return;
+        return sendError(res, 400, 'isActive boolean flag is required');
       }
 
       const updatedUser = await clinicService.updateMemberStatus(clinicId, memberUserId, isActive);
       
-      res.status(200).json({
-        message: 'Member status updated successfully',
-        user: updatedUser,
-      });
+      return sendSuccess(res, 200, 'Member status updated successfully', updatedUser);
     } catch (error: any) {
       console.error('Error updating member status:', error);
-      res.status(400).json({ error: error.message || 'Failed to update member status' });
+      return sendError(res, 400, 'Failed to update member status', error);
     }
   }
 }

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { doctorService } from './doctor.service';
 import { AuthRequest } from '../../common/middleware/auth.middleware';
+import { sendSuccess, sendError } from '../../common/utils/response.util';
 
 export class DoctorController {
 
@@ -8,53 +9,49 @@ export class DoctorController {
   // DOCTOR SCHEDULE
   // =========================
 
-  async getSchedule(req: Request, res: Response): Promise<void> {
+  async getSchedule(req: Request, res: Response): Promise<any> {
     try {
       const clinicId = req.params.clinicId as string;
       const doctorId = req.params.doctorId as string;
 
       if (!clinicId || !doctorId) {
-        res.status(400).json({ error: 'Clinic ID and Doctor ID are required' });
-        return;
+        return sendError(res, 400, 'Clinic ID and Doctor ID are required');
       }
 
       const schedule = await doctorService.getSchedule(clinicId, doctorId);
-      res.status(200).json(schedule);
+      return sendSuccess(res, 200, 'Doctor schedule retrieved successfully', schedule);
     } catch (error: any) {
       console.error('Error fetching doctor schedule:', error);
-      res.status(500).json({ error: error.message || 'Failed to fetch doctor schedule' });
+      return sendError(res, 500, 'Failed to fetch doctor schedule', error);
     }
   }
 
-  async saveSchedule(req: AuthRequest, res: Response): Promise<void> {
+  async saveSchedule(req: AuthRequest, res: Response): Promise<any> {
     try {
       const clinicId = req.params.clinicId as string;
       const doctorId = req.params.doctorId as string;
       const schedules = req.body;
 
       if (!clinicId || !doctorId) {
-        res.status(400).json({ error: 'Clinic ID and Doctor ID are required' });
-        return;
+        return sendError(res, 400, 'Clinic ID and Doctor ID are required');
       }
 
       if (!Array.isArray(schedules)) {
-        res.status(400).json({ error: 'Schedules must be provided as an array' });
-        return;
+        return sendError(res, 400, 'Schedules must be provided as an array');
       }
 
       // Security check: If the user is a DOCTOR, they can only edit their OWN schedule
       // If they are a CLINIC_ADMIN, they can edit any doctor's schedule in their clinic
       const currentUser = req.user;
       if (currentUser.role === 'DOCTOR' && currentUser.id !== doctorId) {
-        res.status(403).json({ error: 'Doctors can only modify their own schedules' });
-        return;
+        return sendError(res, 403, 'Doctors can only modify their own schedules');
       }
 
       const updatedSchedule = await doctorService.saveSchedule(clinicId, doctorId, schedules);
-      res.status(200).json({ message: 'Schedule updated successfully', schedule: updatedSchedule });
+      return sendSuccess(res, 200, 'Schedule updated successfully', { schedule: updatedSchedule });
     } catch (error: any) {
       console.error('Error saving doctor schedule:', error);
-      res.status(400).json({ error: error.message || 'Failed to save doctor schedule' });
+      return sendError(res, 400, 'Failed to save doctor schedule', error);
     }
   }
 
@@ -62,7 +59,7 @@ export class DoctorController {
   // DOCTOR LEAVES
   // =========================
 
-  async getLeaves(req: Request, res: Response): Promise<void> {
+  async getLeaves(req: Request, res: Response): Promise<any> {
     try {
       const clinicId = req.params.clinicId as string;
       const doctorId = req.params.doctorId as string;
@@ -70,8 +67,7 @@ export class DoctorController {
       const endDate = req.query.endDate as string | undefined;
 
       if (!clinicId || !doctorId) {
-        res.status(400).json({ error: 'Clinic ID and Doctor ID are required' });
-        return;
+        return sendError(res, 400, 'Clinic ID and Doctor ID are required');
       }
 
       const leaves = await doctorService.getLeaves(
@@ -82,51 +78,47 @@ export class DoctorController {
       );
       
       res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      res.status(200).json(leaves);
+      return sendSuccess(res, 200, 'Leaves retrieved successfully', leaves);
     } catch (error: any) {
       console.error('Error fetching doctor leaves:', error);
-      res.status(500).json({ error: error.message || 'Failed to fetch doctor leaves' });
+      return sendError(res, 500, 'Failed to fetch doctor leaves', error);
     }
   }
 
-  async saveLeaves(req: AuthRequest, res: Response): Promise<void> {
+  async saveLeaves(req: AuthRequest, res: Response): Promise<any> {
     try {
       const clinicId = req.params.clinicId as string;
       const doctorId = req.params.doctorId as string;
       const leavesData = req.body; // Array of { date: string, reason?: string }
 
       if (!clinicId || !doctorId) {
-        res.status(400).json({ error: 'Clinic ID and Doctor ID are required' });
-        return;
+        return sendError(res, 400, 'Clinic ID and Doctor ID are required');
       }
 
       if (!Array.isArray(leavesData)) {
-        res.status(400).json({ error: 'Leaves data must be an array of dates' });
-        return;
+        return sendError(res, 400, 'Leaves data must be an array of dates');
       }
 
       const currentUser = req.user;
       if (currentUser.role === 'DOCTOR' && currentUser.id !== doctorId) {
-        res.status(403).json({ error: 'Doctors can only manage their own leaves' });
-        return;
+        return sendError(res, 403, 'Doctors can only manage their own leaves');
       }
 
       const savedLeaves = await doctorService.saveLeaves(clinicId, doctorId, leavesData);
-      res.status(200).json({ message: 'Leaves saved successfully', leaves: savedLeaves });
+      return sendSuccess(res, 200, 'Leaves saved successfully', { leaves: savedLeaves });
     } catch (error: any) {
       console.error('Error saving doctor leaves:', error);
-      res.status(400).json({ error: error.message || 'Failed to save doctor leaves' });
+      return sendError(res, 400, 'Failed to save doctor leaves', error);
     }
   }
 
-  async deleteLeave(req: AuthRequest, res: Response): Promise<void> {
+  async deleteLeave(req: AuthRequest, res: Response): Promise<any> {
     try {
       const clinicId = req.params.clinicId as string;
       const leaveId = req.params.leaveId as string;
 
       if (!clinicId || !leaveId) {
-        res.status(400).json({ error: 'Clinic ID and Leave ID are required' });
-        return;
+        return sendError(res, 400, 'Clinic ID and Leave ID are required');
       }
 
       // We do not check doctor ownership strictly here at controller level because 
@@ -134,10 +126,10 @@ export class DoctorController {
       // requestor owns the leave or is admin.
       
       const result = await doctorService.deleteLeave(clinicId, leaveId);
-      res.status(200).json(result);
+      return sendSuccess(res, 200, result.message, result);
     } catch (error: any) {
       console.error('Error deleting doctor leave:', error);
-      res.status(400).json({ error: error.message || 'Failed to delete doctor leave' });
+      return sendError(res, 400, 'Failed to delete doctor leave', error);
     }
   }
 
@@ -145,33 +137,30 @@ export class DoctorController {
   // DOCTOR PATIENT LOOKUP
   // =========================
 
-  async getPatientDetails(req: AuthRequest, res: Response): Promise<void> {
+  async getPatientDetails(req: AuthRequest, res: Response): Promise<any> {
     try {
       const doctorId = req.params.doctorId as string;
       const patientId = req.params.patientId as string;
 
       if (!doctorId || !patientId) {
-        res.status(400).json({ error: 'Doctor ID and Patient ID are required' });
-        return;
+        return sendError(res, 400, 'Doctor ID and Patient ID are required');
       }
 
       const currentUser = req.user;
       if (currentUser.role === 'DOCTOR' && currentUser.id !== doctorId) {
-        res.status(403).json({ error: 'Doctors can only access patients associated with their own ID' });
-        return;
+        return sendError(res, 403, 'Doctors can only access patients associated with their own ID');
       }
 
       const patient = await doctorService.getPatientDetails(doctorId, patientId);
 
       if (!patient) {
-        res.status(404).json({ error: 'Patient not found' });
-        return;
+        return sendError(res, 404, 'Patient not found');
       }
 
-      res.status(200).json(patient);
+      return sendSuccess(res, 200, 'Patient details retrieved successfully', patient);
     } catch (error: any) {
       console.error('Error fetching patient details:', error);
-      res.status(500).json({ error: error.message || 'Failed to fetch patient details' });
+      return sendError(res, 500, 'Failed to fetch patient details', error);
     }
   }
 }

@@ -2,9 +2,10 @@ import { Request, Response } from "express";
 import { prisma } from "../../prisma/client";
 import { getOrCreateQueueSession } from "./queue.service";
 import { emitQueueUpdate } from "./queue.socket";
+import { sendSuccess, sendError } from "../../common/utils/response.util";
 
 // GET /queue/current
-export const getCurrentQueue = async (req: Request, res: Response): Promise<void> => {
+export const getCurrentQueue = async (req: Request, res: Response): Promise<any> => {
   try {
     const doctorId = req.query.doctorId as string;
     const clinicId = req.query.clinicId as string;
@@ -14,14 +15,14 @@ export const getCurrentQueue = async (req: Request, res: Response): Promise<void
       clinicId
     });
 
-    res.json(queue);
+    return sendSuccess(res, 200, "Current queue retrieved successfully", queue);
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return sendError(res, 400, "Failed to retrieve current queue", err);
   }
 };
 
 // GET /queue/:queueId
-export const getQueueDetails = async (req: Request, res: Response): Promise<void> => {
+export const getQueueDetails = async (req: Request, res: Response): Promise<any> => {
   try {
     const queueId = req.params.queueId as string;
 
@@ -45,26 +46,24 @@ export const getQueueDetails = async (req: Request, res: Response): Promise<void
     });
 
     if (!queue) {
-      res.status(404).json({ message: "Queue session not found" });
-      return;
+      return sendError(res, 404, "Queue session not found");
     }
 
-    res.json(queue);
+    return sendSuccess(res, 200, "Queue details retrieved successfully", queue);
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return sendError(res, 400, "Failed to retrieve queue details", err);
   }
 };
 
 // POST /queue/call-next
-export const callNextToken = async (req: Request, res: Response): Promise<void> => {
+export const callNextToken = async (req: Request, res: Response): Promise<any> => {
   try {
     const queueId = req.body.queueId as string;
     const userId = req.body.userId as string;
 
     const existingQueue = await prisma.queueSession.findUnique({ where: { id: queueId } });
     if (!existingQueue) {
-      res.status(404).json({ message: "Queue session not found" });
-      return;
+      return sendError(res, 404, "Queue session not found");
     }
 
     const token = await prisma.token.findFirst({
@@ -76,8 +75,7 @@ export const callNextToken = async (req: Request, res: Response): Promise<void> 
     });
 
     if (!token) {
-      res.status(404).json({ message: "No tokens left" });
-      return;
+      return sendError(res, 404, "No tokens left");
     }
 
     await prisma.$transaction(async (tx) => {
@@ -108,32 +106,29 @@ export const callNextToken = async (req: Request, res: Response): Promise<void> 
     console.log(`[Socket Logger] Token Called Next: ${token.tokenNumber}`);
     await emitQueueUpdate(queueId);
 
-    res.json({ message: "Token called", tokenNumber: token.tokenNumber });
+    return sendSuccess(res, 200, "Token called", { tokenNumber: token.tokenNumber });
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return sendError(res, 400, "Failed to call next token", err);
   }
 };
 
 // POST /queue/pause
-export const pauseQueue = async (req: Request, res: Response): Promise<void> => {
+export const pauseQueue = async (req: Request, res: Response): Promise<any> => {
   try {
     const queueId = req.body.queueId as string;
     const userId = req.body.userId as string;
 
     const existingQueue = await prisma.queueSession.findUnique({ where: { id: queueId } });
     if (!existingQueue) {
-      res.status(404).json({ message: "Queue session not found" });
-      return;
+      return sendError(res, 404, "Queue session not found");
     }
 
     if (existingQueue.doctorId !== userId) {
-      res.status(403).json({ message: "Only the designated doctor can pause this queue." });
-      return;
+      return sendError(res, 403, "Only the designated doctor can pause this queue.");
     }
 
     if (existingQueue.status === "CLOSED") {
-      res.status(400).json({ message: "Queue is already closed" });
-      return;
+      return sendError(res, 400, "Queue is already closed");
     }
 
     await prisma.queueSession.update({
@@ -144,37 +139,33 @@ export const pauseQueue = async (req: Request, res: Response): Promise<void> => 
     console.log(`[Socket Logger] Queue Paused: ${queueId}`);
     await emitQueueUpdate(queueId);
 
-    res.json({ message: "Queue paused successfully" });
+    return sendSuccess(res, 200, "Queue paused successfully");
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return sendError(res, 400, "Failed to pause queue", err);
   }
 };
 
 // POST /queue/resume
-export const resumeQueue = async (req: Request, res: Response): Promise<void> => {
+export const resumeQueue = async (req: Request, res: Response): Promise<any> => {
   try {
     const queueId = req.body.queueId as string;
     const userId = req.body.userId as string;
 
     const existingQueue = await prisma.queueSession.findUnique({ where: { id: queueId } });
     if (!existingQueue) {
-      res.status(404).json({ message: "Queue session not found" });
-      return;
+      return sendError(res, 404, "Queue session not found");
     }
 
     if (existingQueue.doctorId !== userId) {
-      res.status(403).json({ message: "Only the designated doctor can resume this queue." });
-      return;
+      return sendError(res, 403, "Only the designated doctor can resume this queue.");
     }
 
     if (existingQueue.status === "CLOSED") {
-      res.status(400).json({ message: "Queue is closed and cannot be resumed" });
-      return;
+      return sendError(res, 400, "Queue is closed and cannot be resumed");
     }
 
     if (existingQueue.status === "ACTIVE") {
-      res.status(400).json({ message: "Queue is already active" });
-      return;
+      return sendError(res, 400, "Queue is already active");
     }
 
     await prisma.queueSession.update({
@@ -185,27 +176,25 @@ export const resumeQueue = async (req: Request, res: Response): Promise<void> =>
     console.log(`[Socket Logger] Queue Resumed: ${queueId}`);
     await emitQueueUpdate(queueId);
 
-    res.json({ message: "Queue resumed successfully" });
+    return sendSuccess(res, 200, "Queue resumed successfully");
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return sendError(res, 400, "Failed to resume queue", err);
   }
 };
 
 // POST /queue/close
-export const closeQueue = async (req: Request, res: Response): Promise<void> => {
+export const closeQueue = async (req: Request, res: Response): Promise<any> => {
   try {
     const queueId = req.body.queueId as string;
     const userId = req.body.userId as string;
 
     const existingQueue = await prisma.queueSession.findUnique({ where: { id: queueId } });
     if (!existingQueue) {
-      res.status(404).json({ message: "Queue session not found" });
-      return;
+      return sendError(res, 404, "Queue session not found");
     }
 
     if (existingQueue.doctorId !== userId) {
-      res.status(403).json({ message: "Only the designated doctor can close this queue." });
-      return;
+      return sendError(res, 403, "Only the designated doctor can close this queue.");
     }
 
     await prisma.queueSession.update({
@@ -216,8 +205,8 @@ export const closeQueue = async (req: Request, res: Response): Promise<void> => 
     console.log(`[Socket Logger] Queue Closed: ${queueId}`);
     await emitQueueUpdate(queueId);
 
-    res.json({ message: "Queue closed" });
+    return sendSuccess(res, 200, "Queue closed");
   } catch (err: any) {
-    res.status(400).json({ message: err.message });
+    return sendError(res, 400, "Failed to close queue", err);
   }
 };

@@ -10,7 +10,37 @@ Format: `Bearer <token>`
 
 ---
 
-## Patient Authentication
+## Global Response Format
+
+All API responses (except for special cases or specific external integrations) are wrapped in a standard JSON structure.
+
+### Standard Success Response
+All successful requests will return a `2xx` HTTP status code and a JSON body with the following structure:
+```json
+{
+  "status": 200, // The HTTP status code (e.g., 200, 201)
+  "message": "A human-readable success message",
+  "data": { ... } // The actual payload requested, if any
+}
+```
+
+### Standard Error Response
+All failed requests will return a `4xx` or `5xx` HTTP status code and a JSON body with the following structure:
+```json
+{
+  "status": 400, // The HTTP status code
+  "message": "A human-readable error message",
+  "error": { ... } // Detailed error object or string (optional, usually omitted in production or populated with exact stack traces/prisma errors during development)
+}
+```
+
+*Note: The individual endpoint examples below may omit the `status` wrapper and only detail the `data` portion for brevity, but expect the top-level standard format array in practice.*
+
+---
+
+## Authentication
+
+### Patient Authentication
 
 ### 1. Send OTP
 Sends an OTP to the provided phone number. In development mode (`NODE_ENV !== 'production'`), it mocks the MSG91 API response.
@@ -71,8 +101,7 @@ In development mode (`NODE_ENV !== 'production'`), the mock OTP is always `12345
 ```
 
 #### Success Response
-Returns a JWT token (Valid for 7 days), the patient object, and a redirection intent. 
-If the patient's name is not set, `redirectTo` will be `"ONBOARDING"`, otherwise `"DASHBOARD"`.
+Returns a JWT token (Valid for 7 days), and the patient object.
 
 - **Code:** 200 OK
 ```json
@@ -80,7 +109,6 @@ If the patient's name is not set, `redirectTo` will be `"ONBOARDING"`, otherwise
   "message": "OTP verified successfully",
   "token": "eyJhbGciOiJIUzI1...", // (Valid for 7 days)
   "refreshToken": "eyJhbGciOiJIUzI1...", // (Valid for 30 days)
-  "redirectTo": "ONBOARDING",
   "patient": {
     "id": "uuid-string",
     "phone": "919876543210",
