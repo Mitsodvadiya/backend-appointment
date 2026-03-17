@@ -50,4 +50,15 @@ router.delete(
   doctorController.deleteLeave
 );
 
+// =========================
+// PATIENT DETAILS
+// =========================
+
+router.get(
+  '/:doctorId/patient/:patientId',
+  authenticateJWT,
+  authorizeRoles(['CLINIC_ADMIN', 'DOCTOR']),
+  doctorController.getPatientDetails
+);
+
 export default router;

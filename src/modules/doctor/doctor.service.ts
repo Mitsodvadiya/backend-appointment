@@ -183,6 +183,30 @@ export class DoctorService {
 
     return { message: 'Leave removed successfully' };
   }
+
+  // =========================
+  // DOCTOR PATIENT DETAILS
+  // =========================
+
+  async getPatientDetails(doctorId: string, patientId: string) {
+    const patient = await prisma.patient.findUnique({
+      where: { id: patientId },
+      include: {
+        visits: {
+          where: { doctorId },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            clinic: true,
+            tokens: {
+              orderBy: { createdAt: 'desc' }
+            }
+          }
+        }
+      }
+    });
+
+    return patient;
+  }
 }
 
 export const doctorService = new DoctorService();

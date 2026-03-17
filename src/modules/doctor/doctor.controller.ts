@@ -140,6 +140,40 @@ export class DoctorController {
       res.status(400).json({ error: error.message || 'Failed to delete doctor leave' });
     }
   }
+
+  // =========================
+  // DOCTOR PATIENT LOOKUP
+  // =========================
+
+  async getPatientDetails(req: AuthRequest, res: Response): Promise<void> {
+    try {
+      const doctorId = req.params.doctorId as string;
+      const patientId = req.params.patientId as string;
+
+      if (!doctorId || !patientId) {
+        res.status(400).json({ error: 'Doctor ID and Patient ID are required' });
+        return;
+      }
+
+      const currentUser = req.user;
+      if (currentUser.role === 'DOCTOR' && currentUser.id !== doctorId) {
+        res.status(403).json({ error: 'Doctors can only access patients associated with their own ID' });
+        return;
+      }
+
+      const patient = await doctorService.getPatientDetails(doctorId, patientId);
+
+      if (!patient) {
+        res.status(404).json({ error: 'Patient not found' });
+        return;
+      }
+
+      res.status(200).json(patient);
+    } catch (error: any) {
+      console.error('Error fetching patient details:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch patient details' });
+    }
+  }
 }
 
 export const doctorController = new DoctorController();

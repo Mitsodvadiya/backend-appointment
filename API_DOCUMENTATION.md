@@ -1102,6 +1102,59 @@ Delete an existing leave if it is cancelled.
 - **Method:** `DELETE`
 - **Auth Required:** Yes (`CLINIC_ADMIN` or `DOCTOR`)
 
+### 6. Get Patient Details (Doctor)
+Retrieves comprehensive details of a specific patient, along with all their past and current visits specifically managed by this doctor. Includes token data for each visit.
+
+- **URL:** `/doctor/:doctorId/patient/:patientId`
+- **Method:** `GET`
+- **Auth Required:** Yes (`CLINIC_ADMIN` or the specific `DOCTOR`)
+
+#### Success Response
+- **Code:** 200 OK
+```json
+{
+  "id": "uuid",
+  "phone": "91987654321",
+  "name": "Jane Doe",
+  "age": 28,
+  "gender": "FEMALE",
+  "address": "456 Elm St",
+  "createdAt": "...",
+  "visits": [
+    {
+      "id": "visit-uuid",
+      "reason": "Regular Checkup",
+      "createdAt": "...",
+      "clinic": {
+        "id": "clinic-id",
+        "name": "Health Clinic"
+      },
+      "tokens": [
+        {
+          "id": "token-uuid",
+          "tokenNumber": 4,
+          "status": "COMPLETED"
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### Error Response
+- **Code:** 403 Forbidden
+```json
+{
+  "error": "Doctors can only access patients associated with their own ID"
+}
+```
+- **Code:** 404 Not Found
+```json
+{
+  "error": "Patient not found"
+}
+```
+
 ------------------------------------------------------------------------------------------------------
 ## Queue Management
 
