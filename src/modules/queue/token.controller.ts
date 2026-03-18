@@ -41,6 +41,30 @@ export const createToken = async (req: Request, res: Response): Promise<any> => 
       throw new Error("Queue closed");
     }
 
+    // Validate if the current time has passed the doctor's scheduled end time
+    const dayOfWeek = new Date().getDay();
+    const schedules = await prisma.doctorSchedule.findMany({
+      where: { doctorId, clinicId, dayOfWeek }
+    });
+
+    if (schedules.length > 0) {
+      let latestEndTimeMinutes = 0;
+      for (const s of schedules) {
+        const [hours, mins] = s.endTime.split(':').map(Number);
+        const endMinutes = hours * 60 + mins;
+        if (endMinutes > latestEndTimeMinutes) {
+          latestEndTimeMinutes = endMinutes;
+        }
+      }
+
+      const now = new Date();
+      const currentTimeInMinutes = now.getHours() * 60 + now.getMinutes();
+
+      if (currentTimeInMinutes > latestEndTimeMinutes) {
+        throw new Error("Doctor's schedule for today has ended. Cannot generate new tokens.");
+      }
+    }
+
     // Validate Source
     let validSource = source;
     if (source !== "MOBILE_APP" && source !== "STAFF_PANEL") {

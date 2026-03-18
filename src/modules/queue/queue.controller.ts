@@ -30,9 +30,6 @@ export const getQueueDetails = async (req: Request, res: Response): Promise<any>
       where: { id: queueId },
       include: {
         tokens: {
-          where: {
-            status: { in: ["WAITING", "IN_PROGRESS"] }
-          },
           include: {
             visit: {
               include: {

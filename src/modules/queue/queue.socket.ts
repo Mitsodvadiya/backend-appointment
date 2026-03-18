@@ -6,8 +6,14 @@
  * - join_token (optional)
  */
 
+declare global {
+  var io: any;
+}
+
 export const emitQueueUpdate = async (queueId: string) => {
-  // A placeholder function to be extended later into full realtime Socket.IO integration
-  // Wait for the implementation of the Socket configuration for the server
-  console.log(`[Socket Placeholder] emit queue_update for session ${queueId}`);
+  if (global.io) {
+    // Broadcast to everyone currently viewing this specific queue
+    global.io.to(queueId).emit('queue_updated', { queueId });
+    console.log(`[Socket] Broadcasted queue_updated for session ${queueId}`);
+  }
 };
