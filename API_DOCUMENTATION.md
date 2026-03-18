@@ -552,6 +552,48 @@ All API responses follow a uniform JSON structure.
 - **Auth Required:** Yes (Staff/Doctor Token)
 - **Response Data:** (Returns the `Patient` object without nested visit history).
 
+#### 3. Admin Add Patient
+- **Method:** `POST`
+- **Endpoint:** `/api/patient/`
+- **Auth Required:** Yes (`CLINIC_ADMIN`, `STAFF`, `DOCTOR`)
+- **Request Body:**
+```json
+{
+  "phone": "919876543210",
+  "otp": "123456",
+  "name": "Jane Doe",
+  "age": 28,
+  "weight": 65.5,
+  "gender": "FEMALE",
+  "address": "123 Main St"
+}
+```
+- **Response Data:** (Returns the newly created `Patient` object).
+
+#### 4. Send Patient Update OTP (Admin)
+- **Method:** `POST`
+- **Endpoint:** `/api/patient/:patientId/send-update-otp`
+- **Auth Required:** Yes (`CLINIC_ADMIN`, `STAFF`, `DOCTOR`)
+- **Response Data:** None. (Returns a success message that OTP was sent to patient's active phone number).
+
+#### 5. Verify and Update Patient (Admin)
+- **Method:** `PATCH`
+- **Endpoint:** `/api/patient/:patientId/update`
+- **Auth Required:** Yes (`CLINIC_ADMIN`, `STAFF`, `DOCTOR`)
+- **Request Body:**
+```json
+{
+  "otp": "123456",
+  "name": "Jane User",
+  "age": 29,
+  "weight": 66.0,
+  "gender": "FEMALE",
+  "address": "123 Main St",
+  "phone": "919876543210"
+}
+```
+- **Response Data:** (Returns the sequentially updated `Patient` object).
+
 ---
 
 ## 🚥 Queue & Token Module
