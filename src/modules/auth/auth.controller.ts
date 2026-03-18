@@ -10,6 +10,7 @@ export class AuthController {
 
   async register(req: Request, res: Response): Promise<any> {
     try {
+      console.log(req.body)
       const { name, email, password } = req.body;
       if (!name || !email || !password) {
         return sendError(res, 400, 'Name, email, and password are required');
@@ -30,14 +31,15 @@ export class AuthController {
       }
 
       const response = await authService.activate(token);
-      
+
       const { refreshToken, message, ...responseData } = response;
-      
+
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: true,
+        sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
       });
 
       return sendSuccess(res, 200, message, responseData);
@@ -54,14 +56,15 @@ export class AuthController {
       }
 
       const response = await authService.login(email, password);
-      
+
       const { refreshToken, message, ...responseData } = response;
 
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: true,
+        sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
       });
 
       return sendSuccess(res, 200, message, responseData);
@@ -73,18 +76,19 @@ export class AuthController {
   async refresh(req: Request, res: Response): Promise<any> {
     try {
       const refreshToken = req.cookies.refreshToken;
-      
+
       if (!refreshToken) {
         return sendError(res, 401, 'Refresh token not found');
       }
 
       const response = await authService.refreshUserToken(refreshToken);
-      
+
       res.cookie('refreshToken', response.refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: true,
+        sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
       });
 
       return sendSuccess(res, 200, 'Token refreshed', { token: response.token });
@@ -97,8 +101,9 @@ export class AuthController {
     try {
       res.clearCookie('refreshToken', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: true,
+        sameSite: 'none',
+        path: '/',
       });
       return sendSuccess(res, 200, 'Logged out successfully');
     } catch (error: any) {
@@ -168,7 +173,7 @@ export class AuthController {
       }
 
       const result = await authService.verifyOtp(phone, otp);
-      
+
       return sendSuccess(res, 200, 'OTP verified successfully', result);
     } catch (error: any) {
       return sendError(res, 400, error.message || 'Failed to verify OTP', error);
@@ -178,7 +183,7 @@ export class AuthController {
   async patientRefresh(req: Request, res: Response): Promise<any> {
     try {
       const { refreshToken } = req.body;
-      
+
       if (!refreshToken) {
         return sendError(res, 401, 'Refresh token is required in the request body');
       }
@@ -197,7 +202,7 @@ export class AuthController {
   async me(req: AuthRequest, res: Response): Promise<any> {
     try {
       const userId = req.user?.id;
-      
+
       if (!userId) {
         return sendError(res, 401, 'Unauthorized');
       }

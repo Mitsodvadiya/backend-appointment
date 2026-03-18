@@ -80,6 +80,11 @@ export class AuthService {
         data: {
           isActive: true,
         },
+        include: {
+          clinicMembers: {
+            include: { clinic: true },
+          },
+        },
       });
 
       const tokens = this.generateTokens({ 
@@ -98,6 +103,7 @@ export class AuthService {
           email: updatedUser.email,
           role: updatedUser.role,
         },
+        clinic: updatedUser.clinicMembers?.[0]?.clinic || null,
       };
     } catch (error: any) {
       console.error('Error during activation:', error);
@@ -107,7 +113,14 @@ export class AuthService {
 
   async login(email: string, passwordRaw: string) {
     try {
-      const user = await prisma.user.findUnique({ where: { email } });
+      const user = await prisma.user.findUnique({ 
+        where: { email },
+        include: {
+          clinicMembers: {
+            include: { clinic: true },
+          },
+        },
+      });
 
       if (!user || user.deletedAt || !user.password) {
         throw new Error('Invalid credentials');
@@ -138,6 +151,7 @@ export class AuthService {
           email: user.email,
           role: user.role,
         },
+        clinic: user.clinicMembers?.[0]?.clinic || null,
       };
     } catch (error: any) {
       console.error('Error during login:', error);
@@ -379,6 +393,7 @@ export class AuthService {
 
       return {
         user: userProfile,
+        clinic: userProfile.clinicMembers?.[0]?.clinic || null,
       };
     } catch (error: any) {
       console.error('Error fetching user profile:', error);

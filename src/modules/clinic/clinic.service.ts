@@ -14,6 +14,15 @@ export class ClinicService {
     // Only CLINIC_ADMIN is authorized to create a clinic via this endpoint (enforced by middleware),
     // but you could add extra checks here if needed.
     
+    if (data.phone) {
+      const existingClinic = await prisma.clinic.findFirst({
+        where: { phone: data.phone },
+      });
+      if (existingClinic) {
+        throw new Error('A clinic with this phone number already exists');
+      }
+    }
+
     // Create clinic and the first member in a single transaction
     const result = await prisma.$transaction(async (tx) => {
       const clinic = await tx.clinic.create({
@@ -39,6 +48,15 @@ export class ClinicService {
   }
 
   async updateClinic(id: string, data: { name?: string; address?: string; phone?: string }) {
+    if (data.phone) {
+      const existingClinic = await prisma.clinic.findFirst({
+        where: { phone: data.phone, NOT: { id } },
+      });
+      if (existingClinic) {
+        throw new Error('A clinic with this phone number already exists');
+      }
+    }
+
     const updatedClinic = await prisma.clinic.update({
       where: { id },
       data,
