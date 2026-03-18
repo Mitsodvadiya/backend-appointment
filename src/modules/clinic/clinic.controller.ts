@@ -82,6 +82,24 @@ export class ClinicController {
     }
   }
 
+  async resendInvite(req: Request, res: Response): Promise<any> {
+    try {
+      const { clinicId } = req.params;
+      const { email } = req.body;
+
+      if (!email || !clinicId) {
+        return sendError(res, 400, 'Email and Clinic ID are required');
+      }
+
+      const response = await clinicService.resendInvite(clinicId as string, email);
+
+      return sendSuccess(res, 200, response.message);
+    } catch (error: any) {
+      console.error('Error resending invitation:', error);
+      return sendError(res, 400, error.message || 'Failed to resend invitation', error);
+    }
+  }
+
   async activateMember(req: Request, res: Response): Promise<any> {
     try {
       const { token, newPassword } = req.body;
@@ -95,21 +113,21 @@ export class ClinicController {
       }
 
       const response = await clinicService.activateMember(token, newPassword);
-      
-      const { refreshToken, message, ...responseData } = response;
 
+      const { refreshToken, message, ...responseData } = response;
       res.cookie('refreshToken', refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        sameSite: 'none',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
       });
 
       return sendSuccess(res, 200, message, responseData);
     } catch (error: any) {
       console.error('Error activating member:', error);
       if (error.name === 'TokenExpiredError') {
-         return sendError(res, 400, 'Invite link has expired. Please request a new one.');
+        return sendError(res, 400, 'Invite link has expired. Please request a new one.');
       }
       return sendError(res, 400, 'Failed to activate account. The link may be invalid.', error);
     }
@@ -166,7 +184,7 @@ export class ClinicController {
       }
 
       const updatedUser = await clinicService.updateMemberStatus(clinicId, memberUserId, isActive);
-      
+
       return sendSuccess(res, 200, 'Member status updated successfully', updatedUser);
     } catch (error: any) {
       console.error('Error updating member status:', error);

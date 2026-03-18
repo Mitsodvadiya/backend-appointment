@@ -48,6 +48,20 @@ export class AuthController {
     }
   }
 
+  async resendActivation(req: Request, res: Response): Promise<any> {
+    try {
+      const { email } = req.body;
+      if (!email) {
+        return sendError(res, 400, 'Email is required');
+      }
+
+      const response = await authService.resendActivation(email);
+      return sendSuccess(res, 200, response.message);
+    } catch (error: any) {
+      return sendError(res, 400, error.message || 'Failed to resend activation link', error);
+    }
+  }
+
   async login(req: Request, res: Response): Promise<any> {
     try {
       const { email, password } = req.body;

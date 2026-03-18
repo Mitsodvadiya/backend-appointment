@@ -31,13 +31,7 @@ export class AuthService {
 
       const hashedPassword = await bcrypt.hash(passwordRaw, 10);
       
-      // Instead of saving token to DB, issue a short-lived JWT that embeds the email
-      const activationToken = jwt.sign(
-        { email },
-        env.jwtSecret,
-        { expiresIn: '1h' } // 1 hour expiration for activation links
-      );
-
+      // We'll create the user first to capture their true updatedAt timestamp
       const user = await prisma.user.create({
         data: {
           name,
@@ -47,6 +41,13 @@ export class AuthService {
           isActive: false,
         },
       });
+
+      // Instead of saving token to DB, issue a short-lived JWT that embeds the email and token version
+      const activationToken = jwt.sign(
+        { email, tokenVer: user.updatedAt.getTime() },
+        env.jwtSecret,
+        { expiresIn: '1d' } // 1 day expiration for activation links
+      );
 
       await emailService.sendActivationEmail(user.email!, activationToken);
 
@@ -69,6 +70,14 @@ export class AuthService {
 
       if (!user) {
         throw new Error('User not found');
+      }
+
+      if (user.deletedAt) {
+        throw new Error('Account does not exist or has been deleted');
+      }
+
+      if (decoded.tokenVer && user.updatedAt.getTime() !== decoded.tokenVer) {
+        throw new Error('This activation link has expired because a newer one was requested.');
       }
 
       if (user.isActive) {
@@ -107,7 +116,45 @@ export class AuthService {
       };
     } catch (error: any) {
       console.error('Error during activation:', error);
+      if (error.name === 'TokenExpiredError') {
+         throw new Error('Activation link has expired. Please request a new one.');
+      }
       throw new Error(error.message || 'Failed to activate account');
+    }
+  }
+
+  async resendActivation(email: string) {
+    try {
+      let user = await prisma.user.findUnique({ where: { email } });
+      
+      if (!user || user.deletedAt) {
+        // Return generic success to prevent email enumeration, or throw error depending on spec
+        throw new Error('User not found');
+      }
+
+      if (user.isActive) {
+        throw new Error('Account is already activated');
+      }
+
+      // Force an update to the user's updatedAt field natively in Postgres.
+      // This instantly invalidates any old JWTs that carried the previous updatedAt timestamp!
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: { updatedAt: new Date() }
+      });
+
+      const activationToken = jwt.sign(
+        { email: user.email, tokenVer: user.updatedAt.getTime() },
+        env.jwtSecret,
+        { expiresIn: '1d' }
+      );
+
+      await emailService.sendActivationEmail(user.email!, activationToken);
+
+      return { message: 'A new activation link has been sent to your email.' };
+    } catch (error: any) {
+      console.error('Error resending activation:', error);
+      throw new Error(error.message || 'Failed to resend activation link');
     }
   }
 

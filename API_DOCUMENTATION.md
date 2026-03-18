@@ -70,11 +70,22 @@ All API responses follow a uniform JSON structure.
     "name": "City Hospital",
     "address": "123 Main St",
     "phone": "919876543210"
-  } // OR null
 }
 ```
 
-#### 3. Login Web User
+#### 3. Resend Activation Web User
+- **Method:** `POST`
+- **Endpoint:** `/api/auth/resend-activation`
+- **Auth Required:** No
+- **Request Body:**
+```json
+{
+  "email": "admin@clinic.com"
+}
+```
+- **Response Data:** None. (Returns a success message that a new link was sent).
+
+#### 4. Login Web User
 - **Method:** `POST`
 - **Endpoint:** `/api/auth/login`
 - **Auth Required:** No
@@ -133,7 +144,7 @@ All API responses follow a uniform JSON structure.
 ```
 - **Response Data:** None.
 
-#### 7. Reset Password
+#### 8. Reset Password
 - **Method:** `POST`
 - **Endpoint:** `/api/auth/reset-password`
 - **Auth Required:** No
@@ -146,7 +157,7 @@ All API responses follow a uniform JSON structure.
 ```
 - **Response Data:** None.
 
-#### 8. Get Current Profile
+#### 9. Get Current Profile
 - **Method:** `GET`
 - **Endpoint:** `/api/auth/me`
 - **Auth Required:** Yes (Web Token)
@@ -178,7 +189,7 @@ All API responses follow a uniform JSON structure.
 }
 ```
 
-#### 9. Update Current Profile
+#### 10. Update Current Profile
 - **Method:** `PATCH`
 - **Endpoint:** `/api/auth/me`
 - **Auth Required:** Yes (Web Token)
@@ -344,7 +355,19 @@ All API responses follow a uniform JSON structure.
 ```
 - **Response Data:** (Returns the created inactive `User` object).
 
-#### 7. Activate an Invited Staff Member
+#### 7. Resend Clinic Invitation
+- **Method:** `POST`
+- **Endpoint:** `/api/clinic/:id/resend-invite`
+- **Auth Required:** Yes (`CLINIC_ADMIN`)
+- **Request Body:**
+```json
+{
+  "email": "doctor@clinic.com"
+}
+```
+- **Response Data:** None. (Returns a success message that a new link was sent).
+
+#### 8. Activate an Invited Staff Member
 - **Method:** `POST`
 - **Endpoint:** `/api/clinic/activate-member`
 - **Auth Required:** No
@@ -370,7 +393,7 @@ All API responses follow a uniform JSON structure.
 }
 ```
 
-#### 8. Toggle Member Status
+#### 9. Toggle Member Status
 - **Method:** `PATCH`
 - **Endpoint:** `/api/clinic/:id/members/:userId/status`
 - **Auth Required:** Yes (`CLINIC_ADMIN`)

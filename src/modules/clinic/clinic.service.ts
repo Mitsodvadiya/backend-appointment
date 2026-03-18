@@ -125,14 +125,56 @@ export class ClinicService {
     });
 
     const inviteToken = jwt.sign(
-      { email, clinicId, purpose: 'clinic_invite' },
+      { email, clinicId, purpose: 'clinic_invite', tokenVer: result.updatedAt.getTime() },
       env.jwtSecret,
-      { expiresIn: '3d' } // Invite expires in 3 days
+      { expiresIn: '1d' } // Invite expires in 1 day
     );
 
     await emailService.sendInviteEmail(email, inviteToken, clinic.name);
 
     return { message: 'Invitation sent successfully', user: result };
+  }
+
+  async resendInvite(clinicId: string, email: string) {
+    const clinic = await prisma.clinic.findUnique({ where: { id: clinicId } });
+    if (!clinic) {
+      throw new Error('Clinic not found');
+    }
+
+    let user = await prisma.user.findUnique({
+      where: { email },
+      include: { clinicMembers: true }
+    });
+
+    if (!user || user.deletedAt) {
+      throw new Error('User not found');
+    }
+
+    const isMember = user.clinicMembers.some(m => m.clinicId === clinicId);
+    if (!isMember) {
+      throw new Error('User is not invited to this clinic');
+    }
+
+    if (user.isActive) {
+      throw new Error('Account is already activated');
+    }
+
+    // Force an update to the user's updatedAt field natively in Postgres to invalidate old invite links
+    user = await prisma.user.update({
+      where: { id: user.id as string },
+      data: { updatedAt: new Date() },
+      include: { clinicMembers: true }
+    });
+
+    const inviteToken = jwt.sign(
+      { email, clinicId, purpose: 'clinic_invite', tokenVer: user.updatedAt.getTime() },
+      env.jwtSecret,
+      { expiresIn: '1d' }
+    );
+
+    await emailService.sendInviteEmail(email, inviteToken, clinic.name);
+
+    return { message: 'A new invitation link has been sent.' };
   }
 
   async activateMember(token: string, newPasswordRaw: string) {
@@ -148,7 +190,11 @@ export class ClinicService {
     });
 
     if (!user || user.deletedAt) {
-      throw new Error('User not found');
+      throw new Error('Account does not exist or has been deleted');
+    }
+
+    if (decoded.tokenVer && user.updatedAt.getTime() !== decoded.tokenVer) {
+      throw new Error('This invite link has expired because a newer one was generated.');
     }
 
     if (user.isActive) {

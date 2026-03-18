@@ -33,6 +33,13 @@ router.post(
 );
 
 router.post(
+  '/:clinicId/resend-invite',
+  authenticateJWT,
+  authorizeRoles(['CLINIC_ADMIN']),
+  clinicController.resendInvite
+);
+
+router.post(
   '/activate-member',
   clinicController.activateMember
 );
